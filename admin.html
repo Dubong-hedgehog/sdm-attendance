@@ -392,7 +392,7 @@ function renderActivityList() {
     return `
     <div class="list-item" id="act-item-${i}">
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div class="list-item-title">${act['활동명']}</div>
+        <div class="list-item-title" onclick="toggleEditActivity(${i})" style="cursor:pointer; color:#1D9E75; text-decoration:underline;">${act['활동명']}</div>
         <div style="display:flex; align-items:center; gap:6px;">
           <span class="badge ${active ? 'badge-green' : 'badge-gray'}">${active ? '활성' : '비활성'}</span>
           <button class="btn-sm btn-blue" onclick="toggleChecklist(${i})" title="준비물 체크리스트">+</button>
@@ -402,6 +402,39 @@ function renderActivityList() {
       <div class="btn-row">
         <button class="btn-sm ${active ? 'btn-red' : 'btn-green'}" onclick="toggleActivity(${i})">${active ? '비활성화' : '활성화'}</button>
       </div>
+
+      <div id="edit-activity-${i}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+        <label style="margin-top:0;">활동명</label>
+        <input type="text" id="edit-name-${i}" value="${act['활동명']}">
+        <label>날짜</label>
+        <input type="text" id="edit-date-${i}" value="${String(act['날짜']).split('T')[0]}">
+        <label>세부참여항목 (쉼표 구분)</label>
+        <input type="text" id="edit-sub-${i}" value="${act['세부참여항목'] || ''}">
+        <div class="toggle-wrap" style="margin-top:12px;">
+          <input type="checkbox" id="edit-extra-${i}" ${String(act['추가비용여부']).toUpperCase()==='TRUE' ? 'checked' : ''} onchange="toggleEditExtra(${i})">
+          <label for="edit-extra-${i}">추가비용 있음</label>
+        </div>
+        <div id="edit-extra-wrap-${i}" style="display:${String(act['추가비용여부']).toUpperCase()==='TRUE' ? 'block' : 'none'};">
+          <label>추가비용안내 (| 로 구분)</label>
+          <input type="text" id="edit-extra-msg-${i}" value="${act['추가비용안내'] || ''}">
+          <label>세부항목추가금</label>
+          <input type="text" id="edit-extra-items-${i}" value="${act['세부항목추가금'] || ''}">
+        </div>
+        <div class="toggle-wrap" style="margin-top:12px;">
+          <input type="checkbox" id="edit-1365-${i}" ${String(act['1365처리여부']).toUpperCase()==='TRUE' ? 'checked' : ''}>
+          <label for="edit-1365-${i}">1365 처리 활동</label>
+        </div>
+        <div class="toggle-wrap" style="margin-top:8px;">
+          <input type="checkbox" id="edit-active-${i}" ${active ? 'checked' : ''}>
+          <label for="edit-active-${i}">활성화</label>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn-sm btn-green" style="flex:1; padding:10px;" onclick="saveEditActivity(${i})">저장</button>
+          <button class="btn-sm btn-gray" style="flex:1; padding:10px;" onclick="toggleEditActivity(${i})">취소</button>
+        </div>
+        <div class="msg" id="edit-act-msg-${i}"></div>
+      </div>
+
       <div id="checklist-${i}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
         <div id="checklist-items-${i}"></div>
         <div style="display:flex; gap:6px; margin-top:8px;">
@@ -597,6 +630,53 @@ async function deleteCheckItem(idx, j) {
   res.items.splice(j, 1);
   await api({ action: 'saveChecklist', activityId: act['활동ID'], items: res.items });
   renderChecklist(idx, res.items);
+}
+ function toggleEditActivity(idx) {
+  const wrap = document.getElementById(`edit-activity-${idx}`);
+  wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleEditExtra(idx) {
+  const checked = document.getElementById(`edit-extra-${idx}`).checked;
+  document.getElementById(`edit-extra-wrap-${idx}`).style.display = checked ? 'block' : 'none';
+}
+
+async function saveEditActivity(idx) {
+  const act = allActivities[idx];
+  const name = document.getElementById(`edit-name-${idx}`).value.trim();
+  const date = document.getElementById(`edit-date-${idx}`).value.trim();
+  const sub = document.getElementById(`edit-sub-${idx}`).value.trim();
+  const hasExtra = document.getElementById(`edit-extra-${idx}`).checked;
+  const extraMsg = document.getElementById(`edit-extra-msg-${idx}`).value.trim();
+  const extraItems = document.getElementById(`edit-extra-items-${idx}`).value.trim();
+  const is1365 = document.getElementById(`edit-1365-${idx}`).checked;
+  const active = document.getElementById(`edit-active-${idx}`).checked;
+
+  if (!name || !date) { showMsg(`edit-act-msg-${idx}`, '활동명과 날짜는 필수예요.', 'error'); return; }
+
+  const res = await api({
+    action: 'updateActivity',
+    activityId: act['활동ID'],
+    name, date,
+    subItems: sub,
+    extraFlag: hasExtra ? 'TRUE' : 'FALSE',
+    extraMsg, extraItems,
+    is1365: is1365 ? 'TRUE' : 'FALSE',
+    active
+  });
+
+  if (res.success) {
+    allActivities[idx] = {
+      ...act, '활동명': name, '날짜': date, '세부참여항목': sub,
+      '추가비용여부': hasExtra ? 'TRUE' : 'FALSE',
+      '추가비용안내': extraMsg, '세부항목추가금': extraItems,
+      '1365처리여부': is1365 ? 'TRUE' : 'FALSE',
+      '활성화': active ? 'TRUE' : 'FALSE'
+    };
+    renderActivityList();
+  } else {
+    showMsg(`edit-act-msg-${idx}`, res.message, 'error');
+  }
 }
 </script>
 </body>
