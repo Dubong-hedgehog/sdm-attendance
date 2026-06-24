@@ -390,14 +390,24 @@ function renderActivityList() {
     const active = String(act['활성화']).toUpperCase() === 'TRUE';
     const is1365 = String(act['1365처리여부']).toUpperCase() === 'TRUE';
     return `
-    <div class="list-item">
+    <div class="list-item" id="act-item-${i}">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div class="list-item-title">${act['활동명']}</div>
-        <span class="badge ${active ? 'badge-green' : 'badge-gray'}">${active ? '활성' : '비활성'}</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="badge ${active ? 'badge-green' : 'badge-gray'}">${active ? '활성' : '비활성'}</span>
+          <button class="btn-sm btn-blue" onclick="toggleChecklist(${i})" title="준비물 체크리스트">+</button>
+        </div>
       </div>
       <div class="list-item-sub">${String(act['날짜']).split('T')[0]} ${is1365 ? '· <span style="color:#378ADD;">1365</span>' : ''}</div>
       <div class="btn-row">
         <button class="btn-sm ${active ? 'btn-red' : 'btn-green'}" onclick="toggleActivity(${i})">${active ? '비활성화' : '활성화'}</button>
+      </div>
+      <div id="checklist-${i}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+        <div id="checklist-items-${i}"></div>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          <input type="text" id="checklist-input-${i}" placeholder="준비물 입력" style="flex:1; padding:8px 12px; font-size:13px;">
+          <button class="btn-sm btn-green" onclick="addChecklistItem(${i})">추가</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -510,6 +520,84 @@ function switchTab(tab) {
 document.getElementById('new-act-extra').addEventListener('change', function() {
   document.getElementById('new-act-extra-wrap').style.display = this.checked ? 'block' : 'none';
 });
+ async function toggleChecklist(idx) {
+  const wrap = document.getElementById(`checklist-${idx}`);
+  const isHidden = wrap.style.display === 'none';
+  if (isHidden) {
+    wrap.style.display = 'block';
+    await loadChecklist(idx);
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+async function loadChecklist(idx) {
+  const act = allActivities[idx];
+  const res = await api({ action: 'getChecklist', activityId: act['활동ID'] });
+  if (!res.success) return;
+  renderChecklist(idx, res.items);
+}
+
+function renderChecklist(idx, items) {
+  const container = document.getElementById(`checklist-items-${idx}`);
+  if (items.length === 0) {
+    container.innerHTML = '<div style="font-size:13px; color:#aaa; padding:4px 0;">준비물이 없어요. 아래에서 추가해주세요!</div>';
+    return;
+  }
+  container.innerHTML = items.map((item, j) => `
+    <div id="checklist-row-${idx}-${j}" style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #f5f5f5;">
+      <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleCheckItem(${idx},${j},this.checked)" style="width:18px; height:18px;">
+      <span style="flex:1; font-size:14px; ${item.checked ? 'text-decoration:line-through; color:#aaa;' : 'color:#333;'}">${item.name}</span>
+      <div style="display:flex; gap:4px;">
+        <button class="btn-sm btn-gray" onclick="moveCheckItem(${idx},${j},-1)" ${j===0 ? 'disabled' : ''}>↑</button>
+        <button class="btn-sm btn-gray" onclick="moveCheckItem(${idx},${j},1)" ${j===items.length-1 ? 'disabled' : ''}>↓</button>
+        <button class="btn-sm btn-red" onclick="deleteCheckItem(${idx},${j})">삭제</button>
+      </div>
+    </div>`).join('');
+}
+
+async function addChecklistItem(idx) {
+  const input = document.getElementById(`checklist-input-${idx}`);
+  const name = input.value.trim();
+  if (!name) return;
+  const act = allActivities[idx];
+  const res = await api({ action: 'getChecklist', activityId: act['활동ID'] });
+  const items = res.success ? res.items : [];
+  items.push({ name, checked: false });
+  const saveRes = await api({ action: 'saveChecklist', activityId: act['활동ID'], items });
+  if (saveRes.success) { input.value = ''; renderChecklist(idx, items); }
+}
+
+async function toggleCheckItem(idx, j, checked) {
+  const act = allActivities[idx];
+  const res = await api({ action: 'getChecklist', activityId: act['활동ID'] });
+  if (!res.success) return;
+  res.items[j].checked = checked;
+  await api({ action: 'saveChecklist', activityId: act['활동ID'], items: res.items });
+  renderChecklist(idx, res.items);
+}
+
+async function moveCheckItem(idx, j, dir) {
+  const act = allActivities[idx];
+  const res = await api({ action: 'getChecklist', activityId: act['활동ID'] });
+  if (!res.success) return;
+  const items = res.items;
+  const newJ = j + dir;
+  if (newJ < 0 || newJ >= items.length) return;
+  [items[j], items[newJ]] = [items[newJ], items[j]];
+  await api({ action: 'saveChecklist', activityId: act['활동ID'], items });
+  renderChecklist(idx, items);
+}
+
+async function deleteCheckItem(idx, j) {
+  if (!confirm('삭제할까요?')) return;
+  const act = allActivities[idx];
+  const res = await api({ action: 'getChecklist', activityId: act['활동ID'] });
+  if (!res.success) return;
+  res.items.splice(j, 1);
+  await api({ action: 'saveChecklist', activityId: act['활동ID'], items: res.items });
+  renderChecklist(idx, res.items);
+}
 </script>
 </body>
 </html>
