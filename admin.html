@@ -296,9 +296,9 @@ async function loadDashboard() {
           <div class="stat-label">총 대원</div>
           <div class="stat-val">${totalMembers}명</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">개근자</div>
-          <div class="stat-val">${perfectMembers.length}명</div>
+        <div class="stat-card" onclick="togglePerfectList()" style="cursor:pointer;">
+          <div class="stat-label">개근자 (클릭)</div>
+          <div class="stat-val green">${perfectMembers.length}명</div>
         </div>
       </div>`;
 
