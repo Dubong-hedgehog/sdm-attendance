@@ -106,6 +106,10 @@
         </select>
       </div>
       <div class="notice-box" id="pre-notice"></div>
+      <div class="checkbox-group" id="pre-sub-group" style="display:none">
+        <p>참여 항목 선택</p>
+        <div id="pre-sub-list"></div>
+      </div>
       <label>이름</label>
       <input type="text" id="pre-name" placeholder="홍길동">
       <label>전화번호 뒷 4자리</label>
@@ -316,7 +320,13 @@
     const btn = document.querySelector('#section-pre .btn');
     btn.disabled = true; btn.textContent = '신청 중...';
     try {
-      const res = await api({ action: 'preRegister', name, phone4, activityId });
+      // 추가금 있는 세부항목 수집
+      const checkedSubItems = [...document.querySelectorAll('#sub-activity-list input:checked')]
+        .map(el => el.value).join(',');
+      // 추가금 있는 세부항목 수집
+      const checkedSubItems = [...document.querySelectorAll('#sub-activity-list input:checked')]
+        .map(el => el.value).join(',');
+      const res = await api({ action: 'preRegister', name, phone4, activityId, subItems: checkedSubItems });
       if (res.success) {
         document.getElementById('pre-form').style.display = 'none';
         document.getElementById('pre-success').classList.add('show');
