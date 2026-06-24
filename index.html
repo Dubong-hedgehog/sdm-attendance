@@ -208,57 +208,48 @@
     }
   }
 
-  function onPreActivityChange() {
-       // 사전신청용 세부항목 체크박스 초기화
+function onPreActivityChange() {
+    const activityId = document.getElementById('pre-activity').value;
+    const noticeBox = document.getElementById('pre-notice');
+    noticeBox.style.display = 'none';
+    noticeBox.innerHTML = '';
+
     const preSubGroup = document.getElementById('pre-sub-group');
     const preSubList = document.getElementById('pre-sub-list');
     preSubList.innerHTML = '';
     preSubGroup.style.display = 'none';
 
-    const subItems = act['세부참여항목'];
-    if (subItems && String(subItems).trim() !== '') {
-      const items = String(subItems).split(',').map(s => s.trim()).filter(Boolean);
-      items.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'checkbox-item';
-        div.innerHTML = `<input type="checkbox" id="presub_${item}" value="${item}">
-          <label for="presub_${item}">${item}</label>`;
-        preSubList.appendChild(div);
-      });
-      preSubGroup.style.display = 'block';
-    }
-    const activityId = document.getElementById('pre-activity').value;
-    const noticeBox = document.getElementById('pre-notice');
-    noticeBox.style.display = 'none';
-    noticeBox.innerHTML = '';
     if (!activityId) return;
     const act = allActivities.find(a => a['활동ID'] === activityId);
     if (!act) return;
 
-    const hasExtra = String(act['추가비용여부']).toUpperCase() === 'TRUE';
-    const subExtraRaw = act['세부항목추가금'] || '';
-
-    // 세부항목 추가금 파싱 (플로깅=0,소화기=10000)
-    const subExtraMap = {};
-    if (subExtraRaw.trim() !== '') {
-      subExtraRaw.split(',').forEach(item => {
-        const [k, v] = item.split('=').map(s => s.trim());
-        if (k && v !== undefined) subExtraMap[k] = parseInt(v);
+    // 사전신청용 세부항목 체크박스
+    const subItems = act['세부참여항목'];
+    if (subItems && String(subItems).trim() !== '') {
+      const items = String(subItems).split(',').map(s => s.trim()).filter(Boolean);
+      const subExtraRaw = act['세부항목추가금'] || '';
+      const subExtraMap = {};
+      if (subExtraRaw.trim() !== '') {
+        subExtraRaw.split(',').forEach(item => {
+          const [k, v] = item.split('=').map(s => s.trim());
+          if (k && v !== undefined) subExtraMap[k] = parseInt(v);
+        });
+      }
+      items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'checkbox-item';
+        const priceLabel = subExtraMap[item] !== undefined
+          ? (subExtraMap[item] === 0 ? ' (무료)' : ` (+${subExtraMap[item].toLocaleString()}원)`)
+          : '';
+        div.innerHTML = `<input type="checkbox" id="presub_${item}" value="${item}">
+          <label for="presub_${item}">${item}${priceLabel}</label>`;
+        preSubList.appendChild(div);
       });
-    }
-
-    // 체크박스에 금액 표시
-    const list = document.getElementById('sub-activity-list');
-    if (list) {
-      list.querySelectorAll('.checkbox-item label').forEach(label => {
-        const itemName = label.textContent.split('(')[0].trim();
-        if (subExtraMap[itemName] !== undefined) {
-          label.textContent = itemName + (subExtraMap[itemName] === 0 ? ' (무료)' : ` (+${subExtraMap[itemName].toLocaleString()}원)`);
-        }
-      });
+      preSubGroup.style.display = 'block';
     }
 
     // 활동 전체 추가금 안내
+    const hasExtra = String(act['추가비용여부']).toUpperCase() === 'TRUE';
     if (hasExtra && act['추가비용안내']) {
       const parts = act['추가비용안내'].split('|').map(s => s.trim()).filter(Boolean);
       const icons = ['🏦', '👤', '📱', '💰'];
