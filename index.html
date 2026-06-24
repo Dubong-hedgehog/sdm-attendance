@@ -214,7 +214,11 @@
     if (!act) return;
     const hasExtra = String(act['추가비용여부']).toUpperCase() === 'TRUE';
     if (hasExtra && act['추가비용안내']) {
-      noticeBox.textContent = '💰 ' + act['추가비용안내'];
+      const parts = act['추가비용안내'].split('|').map(s => s.trim()).filter(Boolean);
+      const icons = ['🏦', '👤', '📱', '💰'];
+      noticeBox.innerHTML = parts.map((p, i) =>
+        `<div style="margin-bottom:4px;">${icons[i] || '•'} ${p}</div>`
+      ).join('');
       noticeBox.style.display = 'block';
     }
   }
