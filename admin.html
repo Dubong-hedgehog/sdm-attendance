@@ -126,30 +126,30 @@
       <hr class="divider">
       <h2>새 활동 추가</h2>
       <label>활동ID</label>
-      <input type="text" id="new-act-id" placeholder="ACT_8_005">
+      <input type="text" id="new-act-id" placeholder="8_활동명">
       <label>활동명</label>
-      <input type="text" id="new-act-name" placeholder="5차 - 정기모임">
+      <input type="text" id="new-act-name" placeholder="7차 쫑파티">
       <label>날짜</label>
-      <input type="text" id="new-act-date" placeholder="2026-07-01">
+      <input type="text" id="new-act-date" placeholder="yyyy-mm-dd">
       <label>세부참여항목 (쉼표 구분, 없으면 공란)</label>
-      <input type="text" id="new-act-sub" placeholder="플로깅,소방서">
+      <input type="text" id="new-act-sub" placeholder="활동A,활동B,활동C..">
       <div class="toggle-wrap" style="margin-top:14px;">
         <input type="checkbox" id="new-act-extra">
         <label for="new-act-extra">추가비용 있음</label>
       </div>
       <div id="new-act-extra-wrap" style="display:none;">
-        <label>추가비용안내 (| 로 구분)</label>
+        <label>추가비용안내 (| 로 구분 // 우체국 | 박난정 | 012559-02-082195 | 10,000원)</label>
         <input type="text" id="new-act-extra-msg" placeholder="우체국 | 박난정 | 012559-02-082195 | 10,000원">
-        <label>세부항목추가금 (항목=금액, 쉼표 구분)</label>
-        <input type="text" id="new-act-extra-items" placeholder="플로깅=0,소방서=10000">
+        <label>세부항목추가금 (항목=금액,항목=금액 // 금액은 ,찍지말고 그냥쓰기)</label>
+        <input type="text" id="new-act-extra-items" placeholder="활동A=0,활동B=10000">
       </div>
       <div class="toggle-wrap" style="margin-top:14px;">
         <input type="checkbox" id="new-act-1365">
-        <label for="new-act-1365">1365 처리 활동</label>
+        <label for="new-act-1365">1365 활동여부</label>
       </div>
       <div class="toggle-wrap" style="margin-top:8px;">
         <input type="checkbox" id="new-act-active">
-        <label for="new-act-active">활성화</label>
+        <label for="new-act-active">즉시 활성화</label>
       </div>
       <button class="btn" onclick="addActivity()">활동 추가</button>
       <div class="msg" id="activity-msg"></div>
