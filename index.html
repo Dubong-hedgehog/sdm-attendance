@@ -209,6 +209,24 @@
   }
 
   function onPreActivityChange() {
+       // 사전신청용 세부항목 체크박스 초기화
+    const preSubGroup = document.getElementById('pre-sub-group');
+    const preSubList = document.getElementById('pre-sub-list');
+    preSubList.innerHTML = '';
+    preSubGroup.style.display = 'none';
+
+    const subItems = act['세부참여항목'];
+    if (subItems && String(subItems).trim() !== '') {
+      const items = String(subItems).split(',').map(s => s.trim()).filter(Boolean);
+      items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'checkbox-item';
+        div.innerHTML = `<input type="checkbox" id="presub_${item}" value="${item}">
+          <label for="presub_${item}">${item}</label>`;
+        preSubList.appendChild(div);
+      });
+      preSubGroup.style.display = 'block';
+    }
     const activityId = document.getElementById('pre-activity').value;
     const noticeBox = document.getElementById('pre-notice');
     noticeBox.style.display = 'none';
