@@ -13,15 +13,16 @@
   .logo { text-align: center; margin-bottom: 24px; }
   .logo h1 { font-size: 22px; font-weight: 600; color: #1D9E75; }
   .logo p { font-size: 13px; color: #888; margin-top: 4px; }
-  .activity-badge { background: #E1F5EE; color: #0F6E56; font-size: 13px; padding: 6px 14px; border-radius: 20px; display: inline-block; margin-bottom: 20px; }
   .tabs { display: flex; border-bottom: 1px solid #eee; margin-bottom: 20px; }
   .tab { flex: 1; padding: 10px; text-align: center; font-size: 14px; color: #888; cursor: pointer; border-bottom: 2px solid transparent; }
   .tab.active { color: #1D9E75; border-bottom-color: #1D9E75; font-weight: 500; }
   .section { display: none; }
   .section.active { display: block; }
   label { font-size: 13px; color: #666; display: block; margin-bottom: 6px; margin-top: 14px; }
-  input[type=text] { width: 100%; padding: 12px 14px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 15px; outline: none; transition: border 0.2s; }
-  input[type=text]:focus { border-color: #1D9E75; }
+  input[type=text], select { width: 100%; padding: 12px 14px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 15px; outline: none; transition: border 0.2s; background: #fff; appearance: none; -webkit-appearance: none; }
+  input[type=text]:focus, select:focus { border-color: #1D9E75; }
+  .select-wrap { position: relative; }
+  .select-wrap::after { content: '▾'; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #888; pointer-events: none; font-size: 14px; }
   .checkbox-group { margin-top: 14px; }
   .checkbox-group p { font-size: 13px; color: #666; margin-bottom: 8px; }
   .checkbox-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e0e0e0; border-radius: 10px; margin-bottom: 8px; cursor: pointer; }
@@ -42,17 +43,14 @@
   .info-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; }
   .info-row span:first-child { color: #888; }
   .info-row span:last-child { font-weight: 500; color: #333; }
-  .loading { opacity: 0.6; pointer-events: none; }
+  .no-activity { text-align: center; padding: 30px 0; color: #888; font-size: 14px; }
 </style>
 </head>
 <body>
 <div class="card">
   <div class="logo">
     <h1>SDM</h1>
-    <p id="activityName">활동 정보를 불러오는 중...</p>
-  </div>
-  <div style="text-align:center">
-    <span class="activity-badge" id="activityBadge">로딩 중</span>
+    <p>출석체크 및 사전신청</p>
   </div>
 
   <div class="tabs">
@@ -63,6 +61,12 @@
   <!-- 출석체크 섹션 -->
   <div class="section active" id="section-attend">
     <div id="attend-form">
+      <label>활동 선택</label>
+      <div class="select-wrap">
+        <select id="attend-activity" onchange="onActivityChange('attend')">
+          <option value="">활동을 선택해주세요</option>
+        </select>
+      </div>
       <label>이름</label>
       <input type="text" id="attend-name" placeholder="홍길동">
       <label>전화번호 뒷 4자리</label>
@@ -85,6 +89,12 @@
   <!-- 사전신청 섹션 -->
   <div class="section" id="section-pre">
     <div id="pre-form">
+      <label>활동 선택</label>
+      <div class="select-wrap">
+        <select id="pre-activity">
+          <option value="">활동을 선택해주세요</option>
+        </select>
+      </div>
       <label>이름</label>
       <input type="text" id="pre-name" placeholder="홍길동">
       <label>전화번호 뒷 4자리</label>
@@ -102,9 +112,7 @@
 
 <script src="config.js"></script>
 <script>
-  const params = new URLSearchParams(window.location.search);
-  const activityId = params.get('act') || '';
-  let activityData = null;
+  let allActivities = [];
 
   async function api(body) {
     const res = await fetch(CONFIG.API_URL, {
@@ -114,41 +122,54 @@
     return res.json();
   }
 
-  async function loadActivity() {
-    if (!activityId) {
-      document.getElementById('activityName').textContent = '활동 ID가 없습니다';
-      document.getElementById('activityBadge').textContent = '오류';
-      return;
-    }
+  async function loadActivities() {
     try {
-      const data = await api({ action: 'getActivity', activityId });
+      const data = await api({ action: 'getActivities' });
       if (data.success) {
-        activityData = data.activity;
-        document.getElementById('activityName').textContent = data.activity['활동명'];
-        const rawDate = data.activity['날짜'];
-        const displayDate = rawDate ? String(rawDate).split('T')[0] : '';
-        document.getElementById('activityBadge').textContent =
-        data.activity['기수'] + '기 · ' + displayDate;
-
-        const subItems = data.activity['세부참여항목'];
-        if (subItems && subItems.trim() !== '') {
-          const items = subItems.split(',').map(s => s.trim()).filter(Boolean);
-          const group = document.getElementById('sub-activity-group');
-          const list = document.getElementById('sub-activity-list');
-          items.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'checkbox-item';
-            div.innerHTML = `<input type="checkbox" id="sub_${item}" value="${item}">
-              <label for="sub_${item}">${item}</label>`;
-            list.appendChild(div);
-          });
-          group.style.display = 'block';
+        allActivities = data.activities.filter(a =>
+          String(a['활성화']).toUpperCase() === 'TRUE'
+        );
+        const attendSel = document.getElementById('attend-activity');
+        const preSel = document.getElementById('pre-activity');
+        if (allActivities.length === 0) {
+          attendSel.innerHTML = '<option value="">현재 진행중인 활동이 없습니다</option>';
+          preSel.innerHTML = '<option value="">현재 진행중인 활동이 없습니다</option>';
+          return;
         }
-      } else {
-        document.getElementById('activityName').textContent = '활동을 찾을 수 없습니다';
+        allActivities.forEach(act => {
+          const rawDate = act['날짜'] ? String(act['날짜']).split('T')[0] : '';
+          const label = `${act['활동명']} (${rawDate})`;
+          attendSel.innerHTML += `<option value="${act['활동ID']}">${label}</option>`;
+          preSel.innerHTML += `<option value="${act['활동ID']}">${label}</option>`;
+        });
       }
     } catch(e) {
-      document.getElementById('activityName').textContent = '불러오기 실패';
+      console.error('활동 목록 로드 실패', e);
+    }
+  }
+
+  function onActivityChange(type) {
+    const activityId = document.getElementById('attend-activity').value;
+    const group = document.getElementById('sub-activity-group');
+    const list = document.getElementById('sub-activity-list');
+    list.innerHTML = '';
+    group.style.display = 'none';
+
+    if (!activityId) return;
+    const act = allActivities.find(a => a['활동ID'] === activityId);
+    if (!act) return;
+
+    const subItems = act['세부참여항목'];
+    if (subItems && String(subItems).trim() !== '') {
+      const items = String(subItems).split(',').map(s => s.trim()).filter(Boolean);
+      items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'checkbox-item';
+        div.innerHTML = `<input type="checkbox" id="sub_${item}" value="${item}">
+          <label for="sub_${item}">${item}</label>`;
+        list.appendChild(div);
+      });
+      group.style.display = 'block';
     }
   }
 
@@ -167,18 +188,17 @@
   }
 
   async function submitAttend() {
+    const activityId = document.getElementById('attend-activity').value;
     const name = document.getElementById('attend-name').value.trim();
     const phone4 = document.getElementById('attend-phone').value.trim();
-    if (!name || phone4.length !== 4) {
-      showMsg('attend-msg', '이름과 전화번호 뒷 4자리를 정확히 입력해주세요.', 'error');
-      return;
-    }
+    if (!activityId) { showMsg('attend-msg', '활동을 선택해주세요.', 'error'); return; }
+    if (!name || phone4.length !== 4) { showMsg('attend-msg', '이름과 전화번호 뒷 4자리를 정확히 입력해주세요.', 'error'); return; }
+
     const checkedItems = [...document.querySelectorAll('#sub-activity-list input:checked')]
       .map(el => el.value).join(',');
 
     const btn = document.querySelector('#section-attend .btn');
-    btn.disabled = true;
-    btn.textContent = '확인 중...';
+    btn.disabled = true; btn.textContent = '확인 중...';
 
     try {
       const check = await api({ action: 'checkAttendance', name, phone4, activityId });
@@ -195,12 +215,12 @@
       });
       if (submit.success) {
         document.getElementById('attend-form').style.display = 'none';
-        const success = document.getElementById('attend-success');
-        success.classList.add('show');
+        document.getElementById('attend-success').classList.add('show');
+        const act = allActivities.find(a => a['활동ID'] === activityId);
         const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
         document.getElementById('attend-info').innerHTML = `
           <div class="info-row"><span>이름</span><span>${name}</span></div>
-          <div class="info-row"><span>활동</span><span>${activityData ? activityData['활동명'] : activityId}</span></div>
+          <div class="info-row"><span>활동</span><span>${act ? act['활동명'] : activityId}</span></div>
           <div class="info-row"><span>시간</span><span>${now}</span></div>
           ${checkedItems ? `<div class="info-row"><span>참여항목</span><span>${checkedItems}</span></div>` : ''}
         `;
@@ -215,12 +235,12 @@
   }
 
   async function submitPre() {
+    const activityId = document.getElementById('pre-activity').value;
     const name = document.getElementById('pre-name').value.trim();
     const phone4 = document.getElementById('pre-phone').value.trim();
-    if (!name || phone4.length !== 4) {
-      showMsg('pre-msg', '이름과 전화번호 뒷 4자리를 정확히 입력해주세요.', 'error');
-      return;
-    }
+    if (!activityId) { showMsg('pre-msg', '활동을 선택해주세요.', 'error'); return; }
+    if (!name || phone4.length !== 4) { showMsg('pre-msg', '이름과 전화번호 뒷 4자리를 정확히 입력해주세요.', 'error'); return; }
+
     const btn = document.querySelector('#section-pre .btn');
     btn.disabled = true; btn.textContent = '신청 중...';
     try {
@@ -238,7 +258,7 @@
     }
   }
 
-  loadActivity();
+  loadActivities();
 </script>
 </body>
 </html>
