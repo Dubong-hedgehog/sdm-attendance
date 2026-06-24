@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1D9E75">
+<title>SDM 출석체크</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .card { background: #fff; border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 400px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .logo { text-align: center; margin-bottom: 24px; }
+  .logo h1 { font-size: 22px; font-weight: 600; color: #1D9E75; }
+  .logo p { font-size: 13px; color: #888; margin-top: 4px; }
+  .activity-badge { background: #E1F5EE; color: #0F6E56; font-size: 13px; padding: 6px 14px; border-radius: 20px; display: inline-block; margin-bottom: 20px; }
+  .tabs { display: flex; border-bottom: 1px solid #eee; margin-bottom: 20px; }
+  .tab { flex: 1; padding: 10px; text-align: center; font-size: 14px; color: #888; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab.active { color: #1D9E75; border-bottom-color: #1D9E75; font-weight: 500; }
+  .section { display: none; }
+  .section.active { display: block; }
+  label { font-size: 13px; color: #666; display: block; margin-bottom: 6px; margin-top: 14px; }
+  input[type=text] { width: 100%; padding: 12px 14px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 15px; outline: none; transition: border 0.2s; }
+  input[type=text]:focus { border-color: #1D9E75; }
+  .checkbox-group { margin-top: 14px; }
+  .checkbox-group p { font-size: 13px; color: #666; margin-bottom: 8px; }
+  .checkbox-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e0e0e0; border-radius: 10px; margin-bottom: 8px; cursor: pointer; }
+  .checkbox-item input { width: 18px; height: 18px; accent-color: #1D9E75; }
+  .checkbox-item label { font-size: 14px; color: #333; margin: 0; cursor: pointer; }
+  .btn { width: 100%; padding: 14px; background: #1D9E75; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 500; margin-top: 20px; cursor: pointer; transition: background 0.2s; }
+  .btn:active { background: #0F6E56; }
+  .btn:disabled { background: #ccc; cursor: not-allowed; }
+  .msg { text-align: center; padding: 12px; border-radius: 10px; font-size: 14px; margin-top: 14px; display: none; }
+  .msg.success { background: #E1F5EE; color: #0F6E56; display: block; }
+  .msg.error { background: #FCEBEB; color: #A32D2D; display: block; }
+  .success-screen { text-align: center; padding: 20px 0; display: none; }
+  .success-screen.show { display: block; }
+  .success-icon { width: 64px; height: 64px; background: #E1F5EE; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 30px; }
+  .success-screen h2 { font-size: 20px; color: #1D9E75; margin-bottom: 8px; }
+  .success-screen p { font-size: 14px; color: #666; }
+  .info-box { background: #f8f8f8; border-radius: 10px; padding: 14px; margin-top: 16px; }
+  .info-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; }
+  .info-row span:first-child { color: #888; }
+  .info-row span:last-child { font-weight: 500; color: #333; }
+  .loading { opacity: 0.6; pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <h1>SDM</h1>
+    <p id="activityName">활동 정보를 불러오는 중...</p>
+  </div>
+  <div style="text-align:center">
+    <span class="activity-badge" id="activityBadge">로딩 중</span>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('attend')">출석체크</div>
+    <div class="tab" onclick="switchTab('pre')">사전신청</div>
+  </div>
+
+  <!-- 출석체크 섹션 -->
+  <div class="section active" id="section-attend">
+    <div id="attend-form">
+      <label>이름</label>
+      <input type="text" id="attend-name" placeholder="홍길동">
+      <label>전화번호 뒷 4자리</label>
+      <input type="text" id="attend-phone" placeholder="1234" maxlength="4" inputmode="numeric">
+      <div class="checkbox-group" id="sub-activity-group" style="display:none">
+        <p>참여 항목 선택</p>
+        <div id="sub-activity-list"></div>
+      </div>
+      <button class="btn" onclick="submitAttend()">출석 완료</button>
+      <div class="msg" id="attend-msg"></div>
+    </div>
+    <div class="success-screen" id="attend-success">
+      <div class="success-icon">✓</div>
+      <h2>출석 완료!</h2>
+      <p>참석이 확인되었어요</p>
+      <div class="info-box" id="attend-info"></div>
+    </div>
+  </div>
+
+  <!-- 사전신청 섹션 -->
+  <div class="section" id="section-pre">
+    <div id="pre-form">
+      <label>이름</label>
+      <input type="text" id="pre-name" placeholder="홍길동">
+      <label>전화번호 뒷 4자리</label>
+      <input type="text" id="pre-phone" placeholder="1234" maxlength="4" inputmode="numeric">
+      <button class="btn" onclick="submitPre()">신청 완료</button>
+      <div class="msg" id="pre-msg"></div>
+    </div>
+    <div class="success-screen" id="pre-success">
+      <div class="success-icon">✓</div>
+      <h2>신청 완료!</h2>
+      <p>사전 신청이 접수되었어요</p>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const activityId = params.get('act') || '';
+  let activityData = null;
+
+  async function api(body) {
+    const res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+    return res.json();
+  }
+
+  async function loadActivity() {
+    if (!activityId) {
+      document.getElementById('activityName').textContent = '활동 ID가 없습니다';
+      document.getElementById('activityBadge').textContent = '오류';
+      return;
+    }
+    try {
+      const data = await api({ action: 'getActivity', activityId });
+      if (data.success) {
+        activityData = data.activity;
+        document.getElementById('activityName').textContent = data.activity['활동명'];
+        document.getElementById('activityBadge').textContent =
+          data.activity['기수'] + '기 · ' + data.activity['날짜'];
+
+        const subItems = data.activity['세부참여항목'];
+        if (subItems && subItems.trim() !== '') {
+          const items = subItems.split(',').map(s => s.trim()).filter(Boolean);
+          const group = document.getElementById('sub-activity-group');
+          const list = document.getElementById('sub-activity-list');
+          items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'checkbox-item';
+            div.innerHTML = `<input type="checkbox" id="sub_${item}" value="${item}">
+              <label for="sub_${item}">${item}</label>`;
+            list.appendChild(div);
+          });
+          group.style.display = 'block';
+        }
+      } else {
+        document.getElementById('activityName').textContent = '활동을 찾을 수 없습니다';
+      }
+    } catch(e) {
+      document.getElementById('activityName').textContent = '불러오기 실패';
+    }
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      t.classList.toggle('active', (i === 0 && tab === 'attend') || (i === 1 && tab === 'pre'));
+    });
+    document.getElementById('section-attend').classList.toggle('active', tab === 'attend');
+    document.getElementById('section-pre').classList.toggle('active', tab === 'pre');
+  }
+
+  function showMsg(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = 'msg ' + type;
+  }
+
+  async function submitAttend() {
+    const name = document.getElementById('attend-name').value.trim();
+    const phone4 = document.getElementById('attend-phone').value.trim();
+    if (!name || phone4.length !== 4) {
+      showMsg('attend-msg', '이름과 전화번호 뒷 4자리를 정확히 입력해주세요.', 'error');
+      return;
+    }
+    const checkedItems = [...document.querySelectorAll('#sub-activity-list input:checked')]
+      .map(el => el.value).join(',');
+
+    const btn = document.querySelector('#section-attend .btn');
+    btn.disabled = true;
+    btn.textContent = '확인 중...';
+
+    try {
+      const check = await api({ action: 'checkAttendance', name, phone4, activityId });
+      if (!check.success) {
+        showMsg('attend-msg', check.message, 'error');
+        btn.disabled = false; btn.textContent = '출석 완료';
+        return;
+      }
+      const submit = await api({
+        action: 'submitAttendance', name, phone4, activityId,
+        subActivity: checkedItems,
+        generation: CONFIG.GENERATION,
+        isDaily: false
+      });
+      if (submit.success) {
+        document.getElementById('attend-form').style.display = 'none';
+        const success = document.getElementById('attend-success');
+        success.classList.add('show');
+        const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('attend-info').innerHTML = `
+          <div class="info-row"><span>이름</span><span>${name}</span></div>
+          <div class="info-row"><span>활동</span><span>${activityData ? activityData['활동명'] : activityId}</span></div>
+          <div class="info-row"><span>시간</span><span>${now}</span></div>
+          ${checkedItems ? `<div class="info-row"><span>참여항목</span><span>${checkedItems}</span></div>` : ''}
+        `;
+      } else {
+        showMsg('attend-msg', submit.message, 'error');
+        btn.disabled = false; btn.textContent = '출석 완료';
+      }
+    } catch(e) {
+      showMsg('attend-msg', '오류가 발생했습니다. 다시 시도해주세요.', 'error');
+      btn.disabled = false; btn.textContent = '출석 완료';
+    }
+  }
+
+  async function submitPre() {
+    const name = document.getElementById('pre-name').value.trim();
+    const phone4 = document.getElementById('pre-phone').value.trim();
+    if (!name || phone4.length !== 4) {
+      showMsg('pre-msg', '이름과 전화번호 뒷 4자리를 정확히 입력해주세요.', 'error');
+      return;
+    }
+    const btn = document.querySelector('#section-pre .btn');
+    btn.disabled = true; btn.textContent = '신청 중...';
+    try {
+      const res = await api({ action: 'preRegister', name, phone4, activityId });
+      if (res.success) {
+        document.getElementById('pre-form').style.display = 'none';
+        document.getElementById('pre-success').classList.add('show');
+      } else {
+        showMsg('pre-msg', res.message, 'error');
+        btn.disabled = false; btn.textContent = '신청 완료';
+      }
+    } catch(e) {
+      showMsg('pre-msg', '오류가 발생했습니다. 다시 시도해주세요.', 'error');
+      btn.disabled = false; btn.textContent = '신청 완료';
+    }
+  }
+
+  loadActivity();
+</script>
+</body>
+</html>
