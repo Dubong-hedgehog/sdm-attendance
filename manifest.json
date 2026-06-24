@@ -1,0 +1,20 @@
+{
+  "name": "SDM 출석체크",
+  "short_name": "SDM",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1D9E75",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192x192/1D9E75/ffffff?text=SDM",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512x512/1D9E75/ffffff?text=SDM",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
