@@ -125,8 +125,10 @@
       if (data.success) {
         activityData = data.activity;
         document.getElementById('activityName').textContent = data.activity['활동명'];
+        const rawDate = data.activity['날짜'];
+        const displayDate = rawDate ? String(rawDate).split('T')[0] : '';
         document.getElementById('activityBadge').textContent =
-          data.activity['기수'] + '기 · ' + data.activity['날짜'];
+        data.activity['기수'] + '기 · ' + displayDate;
 
         const subItems = data.activity['세부참여항목'];
         if (subItems && subItems.trim() !== '') {
