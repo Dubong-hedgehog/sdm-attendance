@@ -269,10 +269,20 @@ async function loadDashboard() {
       if (actMap[r['활동ID']]) actMap[r['활동ID']].count++;
     });
 
-    // 개근자 집계
-    const actCount = allActivities.length;
+    // 오늘 날짜 이전 활동만 개근 기준으로 계산
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const pastActivities = allActivities.filter(act => {
+      const actDate = new Date(String(act['날짜']).split('T')[0]);
+      return actDate <= today;
+    });
+    const actCount = pastActivities.length;
+    const pastActIds = new Set(pastActivities.map(a => a['활동ID']));
+
+    // 출석기록도 지난 활동만 필터링
+    const pastAttendance = attendance.filter(r => pastActIds.has(r['활동ID']));
     const memberAttMap = {};
-    attendance.forEach(r => {
+    pastAttendance.forEach(r => {
       if (!memberAttMap[r['이름']]) memberAttMap[r['이름']] = new Set();
       memberAttMap[r['이름']].add(r['활동ID']);
     });
