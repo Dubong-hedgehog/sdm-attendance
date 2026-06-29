@@ -68,6 +68,18 @@
 </head>
 <body>
 <div class="card">
+ <div class="next-activity-header" id="next-activity-header">
+  <div class="next-activity-label">📅 다음 활동</div>
+  <div class="next-activity-name" id="next-activity-name">불러오는 중...</div>
+  <div class="next-activity-meta">
+    <span class="dday-badge" id="next-dday"></span>
+    <span class="next-activity-date" id="next-activity-date"></span>
+  </div>
+  <div class="next-activity-location" id="next-activity-location"></div>
+  <div class="map-container" id="map-container" style="display:none">
+    <div id="kakao-map"></div>
+  </div>
+</div>
   <div class="logo">
     <img src="sdm_7_Final.jpg" alt="SDM 로고">
     <p>출석체크 및 사전신청</p>
@@ -192,10 +204,66 @@
           attendSel.innerHTML += `<option value="${act['활동ID']}">${label}</option>`;
           preSel.innerHTML += `<option value="${act['활동ID']}">${label}</option>`;
         });
+       // 다음 활동 헤더
+  const today = new Date(); today.setHours(0,0,0,0);
+  const upcoming = data.activities
+  .filter(a => new Date(String(a['날짜']).split('T')[0]) >= today)
+  .sort((a, b) => new Date(String(a['날짜']).split('T')[0]) - new Date(String(b['날짜']).split('T')[0]));
+  renderNextActivityHeader(upcoming[0] || null);
       }
     } catch(e) { console.error('활동 목록 로드 실패', e); }
   }
+function renderNextActivityHeader(act) {
+  const header = document.getElementById('next-activity-header');
+  const nameEl = document.getElementById('next-activity-name');
+  const ddayEl = document.getElementById('next-dday');
+  const dateEl = document.getElementById('next-activity-date');
+  const locEl = document.getElementById('next-activity-location');
+  const mapContainer = document.getElementById('map-container');
 
+  if (!act) {
+    header.style.background = '#f0f0f0';
+    nameEl.style.color = '#aaa';
+    nameEl.textContent = '예정된 활동이 없습니다';
+    ddayEl.style.display = 'none';
+    return;
+  }
+  const rawDate = String(act['날짜']).split('T')[0];
+  const actDate = new Date(rawDate); actDate.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((actDate - today) / (1000 * 60 * 60 * 24));
+
+  nameEl.textContent = act['활동명'] || '';
+  dateEl.textContent = rawDate.replace(/-/g, '.');
+
+  if (diff === 0) {
+    ddayEl.textContent = 'D-DAY';
+    ddayEl.className = 'dday-badge today';
+  } else if (diff > 0) {
+    ddayEl.textContent = `D-${diff}`;
+  } else {
+    ddayEl.textContent = `D+${Math.abs(diff)}`;
+    header.style.background = 'linear-gradient(135deg, #888 0%, #666 100%)';
+  }
+  const placeName = act['장소명'] || '';
+  const address = act['주소'] || '';
+  if (placeName || address) {
+    locEl.innerHTML = `📍 ${placeName}${placeName && address ? ' · ' : ''}${address}`;
+  }
+  if (address && typeof kakao !== 'undefined') {
+    mapContainer.style.display = 'block';
+    const geocoder = new kakao.maps.services.Geocoder();
+    geocoder.addressSearch(address, function(result, status) {
+      if (status === kakao.maps.services.Status.OK) {
+        const coords = new kakao.maps.LatLng(result[0].y, result[0].x);
+        const map = new kakao.maps.Map(document.getElementById('kakao-map'), { center: coords, level: 4 });
+        new kakao.maps.Marker({ map, position: coords, title: placeName || address });
+      } else {
+        mapContainer.style.display = 'none';
+      }
+    });
+  }
+}
   function onActivityChange() {
     const activityId = document.getElementById('attend-activity').value;
     const group = document.getElementById('sub-activity-group');
