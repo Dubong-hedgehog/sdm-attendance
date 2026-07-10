@@ -358,10 +358,8 @@ async function toggleAttendanceDetail(activityId) {
 }
 
 async function download1365(activityId, actName) {
-  const res = await api({ action: 'get1365List', activityId });
+  const res = await api({ action: 'get1365List', activityId, generation: currentGen });
   if (!res.success || res.list.length === 0) { alert('1365 신청 대상자가 없어요.'); return; }
-
-  // 엑셀 생성 (SheetJS)
   const script = document.createElement('script');
   script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
   document.head.appendChild(script);
@@ -372,15 +370,11 @@ async function download1365(activityId, actName) {
       r.code == 1 ? '운영진' : '일반대원',
       r.id1365, r.kakao, r.paid, r.refund
     ]);
-
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-
-    // 컬럼 너비 설정
     ws['!cols'] = [
       { wch: 10 }, { wch: 16 }, { wch: 12 }, { wch: 10 },
       { wch: 16 }, { wch: 8 }, { wch: 10 }, { wch: 8 }
     ];
-
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '1365신청대상자');
     XLSX.writeFile(wb, `1365_${actName}.xlsx`);
