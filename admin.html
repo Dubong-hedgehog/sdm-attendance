@@ -259,7 +259,6 @@ async function loadDashboard() {
     const totalMembers = allMembers.filter(m =>
       String(m['환불여부']).toUpperCase() !== 'TRUE'
     ).length;
-
     // 활동별 출석 집계
     const actMap = {};
     allActivities.forEach(act => {
@@ -268,7 +267,6 @@ async function loadDashboard() {
     attendance.forEach(r => {
       if (actMap[r['활동ID']]) actMap[r['활동ID']].count++;
     });
-
     // 오늘 날짜 이전 활동만 개근 기준으로 계산
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -278,8 +276,6 @@ async function loadDashboard() {
     });
     const actCount = pastActivities.length;
     const pastActIds = new Set(pastActivities.map(a => a['활동ID']));
-
-    // 출석기록도 지난 활동만 필터링
     const pastAttendance = attendance.filter(r => pastActIds.has(r['활동ID']));
     const memberAttMap = {};
     pastAttendance.forEach(r => {
@@ -289,7 +285,6 @@ async function loadDashboard() {
     const perfectMembers = Object.entries(memberAttMap)
       .filter(([_, acts]) => acts.size === actCount && actCount > 0)
       .map(([name]) => name);
-
     let html = `
       <div class="stat-grid">
         <div class="stat-card">
@@ -301,7 +296,6 @@ async function loadDashboard() {
           <div class="stat-val green">${perfectMembers.length}명</div>
         </div>
       </div>`;
-
     html += `<div id="perfect-list" style="display:none; background:#E1F5EE; border-radius:10px; padding:12px 14px; margin-bottom:16px;">
       <div style="font-size:13px; font-weight:500; color:#0F6E56; margin-bottom:8px;">개근자 목록 (${perfectMembers.length}명)</div>
       ${perfectMembers.length > 0
@@ -314,45 +308,50 @@ async function loadDashboard() {
         : '<div style="font-size:13px; color:#0F6E56;">아직 개근자가 없어요</div>'
       }
     </div>`;
-
     html += '<h3>활동별 출석 현황</h3>';
-    Object.values(actMap).forEach(act => {
+    Object.entries(actMap).forEach(([activityId, act]) => {
       html += `
         <div class="list-item">
           <div class="list-item-title">${act.name} <span class="badge badge-gray">${act.date}</span></div>
           <div class="list-item-sub">출석 ${act.count}명 / 전체 ${totalMembers}명</div>
           <div class="btn-row">
-            <button class="btn-sm btn-blue" onclick="loadAttendanceDetail('${Object.keys(actMap).find(k => actMap[k] === act)}')">출석명단</button>
-            ${act.is1365 ? `<button class="btn-sm btn-green" onclick="download1365('${Object.keys(actMap).find(k => actMap[k] === act)}', '${act.name}')">1365 내보내기</button>` : ''}
+            <button class="btn-sm btn-blue" onclick="toggleAttendanceDetail('${activityId}')">출석명단</button>
+            ${act.is1365 ? `<button class="btn-sm btn-green" onclick="download1365('${activityId}', '${act.name}')">1365 내보내기</button>` : ''}
           </div>
+          <div id="att-detail-${activityId}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;"></div>
         </div>`;
     });
-
     if (Object.keys(actMap).length === 0) html += '<div class="empty">등록된 활동이 없어요</div>';
     content.innerHTML = html;
   } catch(e) { content.innerHTML = '<div class="empty">불러오기 실패</div>'; }
 }
 
-async function loadAttendanceDetail(activityId) {
-  const res = await api({ action: 'getAttendance', activityId });
-  if (!res.success) return;
-  const act = allActivities.find(a => a['활동ID'] === activityId);
-  let html = `<div style="margin-top:16px;"><h3>${act ? act['활동명'] : activityId} 출석명단</h3>`;
-  if (res.attendance.length === 0) {
-    html += '<div class="empty">출석자가 없어요</div>';
-  } else {
-    html += '<table><tr><th>이름</th><th>시간</th><th>구분</th></tr>';
-    res.attendance.forEach(r => {
-      html += `<tr>
-        <td>${r['이름']}</td>
-        <td style="font-size:11px;">${String(r['출석시간']).substring(0,16)}</td>
-        <td>${String(r['일일대원여부']).toUpperCase() === 'TRUE' ? '<span class="badge badge-blue">일일</span>' : '<span class="badge badge-green">정회원</span>'}</td>
-      </tr>`;
-    });
-    html += '</table>';
+async function toggleAttendanceDetail(activityId) {
+  const container = document.getElementById(`att-detail-${activityId}`);
+  if (!container) return;
+  const isOpen = container.style.display === 'block';
+  if (isOpen) {
+    container.style.display = 'none';
+    return;
   }
-  html += '</div>';
-  document.getElementById('dashboard-content').innerHTML += html;
+  container.style.display = 'block';
+  container.innerHTML = '<div class="empty">불러오는 중...</div>';
+  const res = await api({ action: 'getAttendance', activityId });
+  if (!res.success) { container.innerHTML = '<div class="empty">불러오기 실패</div>'; return; }
+  if (res.attendance.length === 0) {
+    container.innerHTML = '<div class="empty">출석자가 없어요</div>';
+    return;
+  }
+  let html = '<table><tr><th>이름</th><th>시간</th><th>구분</th></tr>';
+  res.attendance.forEach(r => {
+    html += `<tr>
+      <td>${r['이름']}</td>
+      <td style="font-size:11px;">${String(r['출석시간']).substring(0,16)}</td>
+      <td>${String(r['일일대원여부']).toUpperCase() === 'TRUE' ? '<span class="badge badge-blue">일일</span>' : '<span class="badge badge-green">정회원</span>'}</td>
+    </tr>`;
+  });
+  html += '</table>';
+  container.innerHTML = html;
 }
 
 async function download1365(activityId, actName) {
