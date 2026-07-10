@@ -189,7 +189,8 @@
 let allActivities = [];
 let allMembers = [];
 let currentGen = '';
-
+let memberAttendanceStats = {};
+ 
 async function api(body) {
   const res = await fetch(CONFIG.API_URL, { method: 'POST', body: JSON.stringify(body) });
   return res.json();
@@ -226,7 +227,8 @@ function doLogout() {
 }
 
 async function loadAll() {
-  await Promise.all([loadActivities(), loadMembers()]);
+  await loadActivities();
+  await loadMembers();
   loadDashboard();
 }
 
@@ -241,7 +243,11 @@ async function loadActivities() {
 
 async function loadMembers() {
   const res = await api({ action: 'getMembers' });
-  if (res.success) { allMembers = res.members; renderMemberList(); }
+  if (res.success) {
+    allMembers = res.members;
+    await loadMemberAttendanceStats();
+    renderMemberList();
+  }
 }
 
 function populateActivitySelects() {
@@ -271,18 +277,8 @@ async function loadDashboard() {
     attendance.forEach(r => {
       if (actMap[r['활동ID']]) actMap[r['활동ID']].count++;
     });
-    // 개근 집계에 포함되는 활동만 대상으로 계산
-    const countedActivities = allActivities.filter(act =>
-      String(act['개근집계여부']).toUpperCase() !== 'FALSE'
-    );
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const pastActivities = countedActivities.filter(act => {
-      const actDate = new Date(String(act['날짜']).split('T')[0]);
-      return actDate <= today;
-    });
-    const actCount = pastActivities.length;
-    const pastActIds = new Set(pastActivities.map(a => a['활동ID']));
+    const pastActIds = getCountedPastActivityIds();
+    const actCount = pastActIds.size;
     const pastAttendance = attendance.filter(r => pastActIds.has(r['활동ID']));
     const memberAttMap = {};
     pastAttendance.forEach(r => {
@@ -396,10 +392,11 @@ function renderMemberList() {
   if (allMembers.length === 0) { list.innerHTML = '<div class="empty">대원이 없어요</div>'; return; }
   list.innerHTML = allMembers.map((m, i) => {
     const isRefund = String(m['환불여부']).toUpperCase() === 'TRUE';
+    const stat = memberAttendanceStats[m['이름']] || { total: 0, attended: 0 };
     return `
     <div class="list-item" ${isRefund ? 'style="opacity:0.5;"' : ''}>
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div class="list-item-title">${m['이름']} ${isRefund ? '<span class="badge badge-red">환불</span>' : ''}</div>
+        <div class="list-item-title">${m['이름']} <span style="font-size:12px; color:#888; font-weight:400;">(${stat.total}/${stat.attended})</span> ${isRefund ? '<span class="badge badge-red">환불</span>' : ''}</div>
         <span style="font-size:12px; color:#888;">${m['전화번호']}</span>
       </div>
       <div class="btn-row" style="margin-top:8px;">
@@ -726,6 +723,43 @@ async function saveEditActivity(idx) {
  function togglePerfectList() {
   const el = document.getElementById('perfect-list');
   if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+     // 개근 수 확인
+ function getCountedPastActivityIds() {
+  const countedActivities = allActivities.filter(act =>
+    String(act['개근집계여부']).toUpperCase() !== 'FALSE'
+  );
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const pastActivities = countedActivities.filter(act => {
+    const actDate = new Date(String(act['날짜']).split('T')[0]);
+    return actDate <= today;
+  });
+  return new Set(pastActivities.map(a => a['활동ID']));
+}
+
+      // 개근 수 표기
+ async function loadMemberAttendanceStats() {
+  const attRes = await api({ action: 'getAttendance' });
+  const attendance = attRes.success ? attRes.attendance : [];
+  const countedIds = getCountedPastActivityIds();
+  const total = countedIds.size;
+  const attendedMap = {};
+  attendance.forEach(r => {
+    if (countedIds.has(r['활동ID'])) {
+      if (!attendedMap[r['이름']]) attendedMap[r['이름']] = new Set();
+      attendedMap[r['이름']].add(r['활동ID']);
+    }
+  });
+  memberAttendanceStats = {};
+  allMembers.forEach(m => {
+    const name = m['이름'];
+    memberAttendanceStats[name] = {
+      total,
+      attended: attendedMap[name] ? attendedMap[name].size : 0
+    };
+  });
 }
 </script>
 </body>
