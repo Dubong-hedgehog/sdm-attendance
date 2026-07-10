@@ -242,7 +242,7 @@ async function loadActivities() {
 }
 
 async function loadMembers() {
-  const res = await api({ action: 'getMembers' });
+  const res = await api({ action: 'getMembers', generation: currentGen });
   if (res.success) {
     allMembers = res.members;
     await loadMemberAttendanceStats();
@@ -416,7 +416,7 @@ async function toggleMember(idx, field) {
   const current = String(m[field]).toUpperCase() === 'TRUE';
   const newVal = !current ? 'TRUE' : 'FALSE';
   const phone4 = String(m['전화번호']).replace(/-/g, '').replace(/\*/g, '').slice(-4);
-  const res = await api({ action: 'updateMember', name: m['이름'], phone4, field, value: newVal });
+  const res = await api({ action: 'updateMember', name: m['이름'], phone4, field, value: newVal, generation: currentGen });
   if (res.success) { allMembers[idx][field] = newVal; renderMemberList(); }
   else alert(res.message);
 }
