@@ -264,7 +264,6 @@ async function loadDashboard() {
     const totalMembers = allMembers.filter(m =>
       String(m['환불여부']).toUpperCase() !== 'TRUE'
     ).length;
-    // 활동별 출석 집계
     const actMap = {};
     allActivities.forEach(act => {
       actMap[act['활동ID']] = { name: act['활동명'], date: String(act['날짜']).split('T')[0], count: 0, is1365: String(act['1365처리여부']).toUpperCase() === 'TRUE' };
@@ -272,10 +271,13 @@ async function loadDashboard() {
     attendance.forEach(r => {
       if (actMap[r['활동ID']]) actMap[r['활동ID']].count++;
     });
-    // 오늘 날짜 이전 활동만 개근 기준으로 계산
+    // 개근 집계에 포함되는 활동만 대상으로 계산
+    const countedActivities = allActivities.filter(act =>
+      String(act['개근집계여부']).toUpperCase() !== 'FALSE'
+    );
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const pastActivities = allActivities.filter(act => {
+    const pastActivities = countedActivities.filter(act => {
       const actDate = new Date(String(act['날짜']).split('T')[0]);
       return actDate <= today;
     });
@@ -428,6 +430,7 @@ function renderActivityList() {
   list.innerHTML = allActivities.map((act, i) => {
     const active = String(act['활성화']).toUpperCase() === 'TRUE';
     const is1365 = String(act['1365처리여부']).toUpperCase() === 'TRUE';
+    const countAttendance = String(act['개근집계여부']).toUpperCase() !== 'FALSE';
     return `
     <div class="list-item" id="act-item-${i}">
       <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -437,11 +440,10 @@ function renderActivityList() {
           <button class="btn-sm btn-blue" onclick="toggleChecklist(${i})" title="준비물 체크리스트">+</button>
         </div>
       </div>
-      <div class="list-item-sub">${String(act['날짜']).split('T')[0]} ${is1365 ? '· <span style="color:#378ADD;">1365</span>' : ''}</div>
+      <div class="list-item-sub">${String(act['날짜']).split('T')[0]} ${is1365 ? '· <span style="color:#378ADD;">1365</span>' : ''} ${!countAttendance ? '· <span style="color:#E24B4A;">개근제외</span>' : ''}</div>
       <div class="btn-row">
         <button class="btn-sm ${active ? 'btn-red' : 'btn-green'}" onclick="toggleActivity(${i})">${active ? '비활성화' : '활성화'}</button>
       </div>
-
       <div id="edit-activity-${i}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
         <label style="margin-top:0;">활동명</label>
         <input type="text" id="edit-name-${i}" value="${act['활동명']}">
@@ -467,13 +469,16 @@ function renderActivityList() {
           <input type="checkbox" id="edit-active-${i}" ${active ? 'checked' : ''}>
           <label for="edit-active-${i}">활성화</label>
         </div>
+        <div class="toggle-wrap" style="margin-top:8px;">
+          <input type="checkbox" id="edit-count-${i}" ${countAttendance ? 'checked' : ''}>
+          <label for="edit-count-${i}">개근 집계에 포함</label>
+        </div>
         <div style="display:flex; gap:8px; margin-top:12px;">
           <button class="btn-sm btn-green" style="flex:1; padding:10px;" onclick="saveEditActivity(${i})">저장</button>
           <button class="btn-sm btn-gray" style="flex:1; padding:10px;" onclick="toggleEditActivity(${i})">취소</button>
         </div>
         <div class="msg" id="edit-act-msg-${i}"></div>
       </div>
-
       <div id="checklist-${i}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
         <div id="checklist-items-${i}"></div>
         <div style="display:flex; gap:6px; margin-top:8px;">
@@ -503,13 +508,14 @@ async function addActivity() {
   const extraItems = document.getElementById('new-act-extra-items').value.trim();
   const is1365 = document.getElementById('new-act-1365').checked;
   const active = document.getElementById('new-act-active').checked;
+  const countAttendance = document.getElementById('new-act-count').checked;
   if (!id || !name || !date) { showMsg('activity-msg', '활동ID, 활동명, 날짜는 필수예요.', 'error'); return; }
   const res = await api({
     action: 'addActivity', activityId: id, name, date,
     generation: currentGen, subItems: sub,
     extraFlag: hasExtra ? 'TRUE' : 'FALSE',
     extraMsg: extraMsg, extraItems: extraItems,
-    is1365: is1365 ? 'TRUE' : 'FALSE', active
+    is1365: is1365 ? 'TRUE' : 'FALSE', active, countAttendance
   });
   if (res.success) {
     showMsg('activity-msg', '활동이 추가되었습니다.', 'success');
@@ -690,9 +696,8 @@ async function saveEditActivity(idx) {
   const extraItems = document.getElementById(`edit-extra-items-${idx}`).value.trim();
   const is1365 = document.getElementById(`edit-1365-${idx}`).checked;
   const active = document.getElementById(`edit-active-${idx}`).checked;
-
+  const countAttendance = document.getElementById(`edit-count-${idx}`).checked;
   if (!name || !date) { showMsg(`edit-act-msg-${idx}`, '활동명과 날짜는 필수예요.', 'error'); return; }
-
   const res = await api({
     action: 'updateActivity',
     activityId: act['활동ID'],
@@ -701,22 +706,23 @@ async function saveEditActivity(idx) {
     extraFlag: hasExtra ? 'TRUE' : 'FALSE',
     extraMsg, extraItems,
     is1365: is1365 ? 'TRUE' : 'FALSE',
-    active
+    active, countAttendance
   });
-
   if (res.success) {
     allActivities[idx] = {
       ...act, '활동명': name, '날짜': date, '세부참여항목': sub,
       '추가비용여부': hasExtra ? 'TRUE' : 'FALSE',
       '추가비용안내': extraMsg, '세부항목추가금': extraItems,
       '1365처리여부': is1365 ? 'TRUE' : 'FALSE',
-      '활성화': active ? 'TRUE' : 'FALSE'
+      '활성화': active ? 'TRUE' : 'FALSE',
+      '개근집계여부': countAttendance ? 'TRUE' : 'FALSE'
     };
     renderActivityList();
   } else {
     showMsg(`edit-act-msg-${idx}`, res.message, 'error');
   }
 }
+
  function togglePerfectList() {
   const el = document.getElementById('perfect-list');
   if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
