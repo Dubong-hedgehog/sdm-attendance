@@ -75,9 +75,9 @@
 </div>
 
 <div class="container" id="admin-section" style="display:none;">
-  <div class="card" style="padding: 16px 24px;">
+<div class="card" style="padding: 16px 24px;">
     <div style="display:flex; justify-content:space-between; align-items:center;">
-      <h1 style="margin:0;">SDM 운영진</h1>
+      <h1 style="margin:0;" id="admin-header-title">SDM 운영진</h1>
       <button onclick="doLogout()" style="font-size:12px; color:#888; background:none; border:none; cursor:pointer;">로그아웃</button>
     </div>
   </div>
@@ -211,6 +211,7 @@ async function doLogin() {
   const res = await api({ action: 'verifyAdmin', code, generation: gen });
   if (res.success) {
     currentGen = gen;
+    document.getElementById('admin-header-title').textContent = currentGen + '기 SDM 운영진';
     document.getElementById('login-section').style.display = 'none';
     document.getElementById('admin-section').style.display = 'block';
     await loadAll();
@@ -224,6 +225,7 @@ function doLogout() {
   document.getElementById('login-section').style.display = 'block';
   document.getElementById('admin-section').style.display = 'none';
   document.getElementById('login-code').value = '';
+  document.getElementById('admin-header-title').textContent = 'SDM 운영진';
 }
 
 async function loadAll() {
@@ -233,7 +235,7 @@ async function loadAll() {
 }
 
 async function loadActivities() {
-  const res = await api({ action: 'getActivities' });
+  const res = await api({ action: 'getActivities', generation: currentGen });
   if (res.success) {
     allActivities = res.activities;
     populateActivitySelects();
