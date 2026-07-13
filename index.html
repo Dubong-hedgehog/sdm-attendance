@@ -172,7 +172,7 @@
     </div>
   </div>
 
-  <!-- 마이페이지 -->
+<!-- 마이페이지 -->
   <div class="section" id="section-my">
     <div id="my-form">
       <label>이름</label>
@@ -187,15 +187,9 @@
         <p style="font-size:15px; font-weight:500;" id="my-name-display"></p>
         <button onclick="resetMyPage()" style="font-size:12px; color:#888; background:none; border:none; cursor:pointer;">다시조회</button>
       </div>
-
-      <p style="font-size:13px; color:#666; margin-bottom:8px; font-weight:500;">📋 사전신청 현황</p>
-      <div id="my-pre-list"></div>
-
-      <p style="font-size:13px; color:#666; margin-top:16px; margin-bottom:8px; font-weight:500;">✅ 출석 현황</p>
-      <div id="my-att-list"></div>
+      <div id="my-gen-list"></div>
     </div>
   </div>
-</div>
 
 <script src="config.js"></script>
 <script>
@@ -237,19 +231,7 @@ async function loadActivities() {
       }
     } catch(e) { console.error('활동 목록 로드 실패', e); }
   }
- 
-function groupByGeneration(items) {
-  const groups = {};
-  items.forEach(item => {
-    const gen = item.generation || '기타';
-    if (!groups[gen]) groups[gen] = [];
-    groups[gen].push(item);
-  });
-  return Object.keys(groups)
-    .sort((a, b) => Number(b) - Number(a))
-    .map(gen => ({ gen, items: groups[gen] }));
-}
- 
+
 function renderNextActivityHeader(act) {
   const header = document.getElementById('next-activity-header');
   const nameEl = document.getElementById('next-activity-name');
@@ -461,70 +443,90 @@ async function submitPre() {
   }
 }
 
+let myStatusData = null;
+
 async function loadMyStatus() {
-    const name = document.getElementById('my-name').value.trim();
-    const phone4 = document.getElementById('my-phone').value.trim();
-    if (!name || phone4.length !== 4) {
-      showMsg('my-msg', '이름과 전화번호 뒷 4자리를 입력해주세요.', 'error'); return;
-    }
-    const btn = document.querySelector('#section-my .btn');
-    btn.disabled = true; btn.textContent = '조회 중...';
-    try {
-      const res = await api({ action: 'getMemberStatus', name, phone4, generation: CONFIG.GENERATION });
-      if (!res.success) {
-        showMsg('my-msg', res.message, 'error');
-        btn.disabled = false; btn.textContent = '조회하기';
-        return;
-      }
-      document.getElementById('my-form').style.display = 'none';
-      document.getElementById('my-status').style.display = 'block';
-      document.getElementById('my-name-display').textContent = res.member.name + '님';
-
-      const preList = document.getElementById('my-pre-list');
-      const preGroups = groupByGeneration(res.preRegistered);
-      if (preGroups.length === 0) {
-        preList.innerHTML = '<div class="empty-state">신청한 활동이 없어요</div>';
-      } else {
-        preList.innerHTML = preGroups.map(g => `
-          <div class="section-label">${g.gen}기</div>
-          ${g.items.map(r => `
-            <div class="status-card">
-              <div class="status-card-title">
-                ${r.activityName}
-                <span class="status-badge ${r.paid ? 'badge-green' : 'badge-red'}">
-                  ${r.paid ? '납부완료' : '미납'}
-                </span>
-              </div>
-              <button onclick="cancelPre('${r.activityId}', '${name}', '${phone4}')"
-                style="font-size:12px; color:#E24B4A; background:none; border:none; cursor:pointer; margin-top:4px;">
-                신청 취소
-              </button>
-            </div>`).join('')}
-        `).join('');
-      }
-
-      const attList = document.getElementById('my-att-list');
-      const attGroups = groupByGeneration(res.attended);
-      if (attGroups.length === 0) {
-        attList.innerHTML = '<div class="empty-state">출석한 활동이 없어요</div>';
-      } else {
-        attList.innerHTML = attGroups.map(g => `
-          <div class="section-label">${g.gen}기</div>
-          ${g.items.map(r => `
-            <div class="status-card">
-              <div class="status-card-title">
-                ${r.activityName}
-                <span class="status-badge badge-green">출석</span>
-              </div>
-              <div style="font-size:12px; color:#888; margin-top:2px;">${r.time}</div>
-            </div>`).join('')}
-        `).join('');
-      }
-    } catch(e) {
-      showMsg('my-msg', '오류가 발생했습니다. 다시 시도해주세요.', 'error');
-      btn.disabled = false; btn.textContent = '조회하기';
-    }
+  const name = document.getElementById('my-name').value.trim();
+  const phone4 = document.getElementById('my-phone').value.trim();
+  if (!name || phone4.length !== 4) {
+    showMsg('my-msg', '이름과 전화번호 뒷 4자리를 입력해주세요.', 'error'); return;
   }
+  const btn = document.querySelector('#section-my .btn');
+  btn.disabled = true; btn.textContent = '조회 중...';
+  try {
+    const res = await api({ action: 'getMemberStatus', name, phone4 });
+    if (!res.success) {
+      showMsg('my-msg', res.message, 'error');
+      btn.disabled = false; btn.textContent = '조회하기';
+      return;
+    }
+    myStatusData = { ...res, name, phone4 };
+    document.getElementById('my-form').style.display = 'none';
+    document.getElementById('my-status').style.display = 'block';
+    document.getElementById('my-name-display').textContent =
+      res.member.name + '님' + (res.member.isNew ? ' ❤️' : '');
+    renderMyGenList();
+  } catch(e) {
+    showMsg('my-msg', '오류가 발생했습니다. 다시 시도해주세요.', 'error');
+    btn.disabled = false; btn.textContent = '조회하기';
+  }
+}
+
+function renderMyGenList() {
+  const container = document.getElementById('my-gen-list');
+  const { generations, generationStats, preRegistered, attended, name, phone4 } = myStatusData;
+  container.innerHTML = generations.slice().sort((a, b) => Number(b) - Number(a)).map(gen => {
+    const stat = generationStats[gen] || { total: 0, attended: 0 };
+    return `
+      <div class="list-item">
+        <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleMyGen('${gen}')">
+          <div class="list-item-title">${gen}기</div>
+          <span class="status-badge badge-green">${stat.total}회 중 ${stat.attended}회 출석</span>
+        </div>
+        <div id="my-gen-detail-${gen}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+          <p style="font-size:13px; color:#666; margin-bottom:8px; font-weight:500;">📋 사전신청 현황</p>
+          ${renderMyPreList(preRegistered.filter(r => r.generation === gen), name, phone4)}
+          <p style="font-size:13px; color:#666; margin-top:16px; margin-bottom:8px; font-weight:500;">✅ 출석 현황</p>
+          ${renderMyAttList(attended.filter(r => r.generation === gen))}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderMyPreList(items, name, phone4) {
+  if (items.length === 0) return '<div class="empty-state">신청한 활동이 없어요</div>';
+  return items.map(r => `
+    <div class="status-card">
+      <div class="status-card-title">
+        ${r.activityName}
+        <span class="status-badge ${r.paid ? 'badge-green' : 'badge-red'}">
+          ${r.paid ? '납부완료' : '미납'}
+        </span>
+      </div>
+      <button onclick="cancelPre('${r.activityId}', '${name}', '${phone4}')"
+        style="font-size:12px; color:#E24B4A; background:none; border:none; cursor:pointer; margin-top:4px;">
+        신청 취소
+      </button>
+    </div>`).join('');
+}
+
+function renderMyAttList(items) {
+  if (items.length === 0) return '<div class="empty-state">출석한 활동이 없어요</div>';
+  return items.map(r => `
+    <div class="status-card">
+      <div class="status-card-title">
+        ${r.activityName}
+        <span class="status-badge badge-green">출석</span>
+      </div>
+      <div style="font-size:12px; color:#888; margin-top:2px;">${r.time}</div>
+    </div>`).join('');
+}
+
+function toggleMyGen(gen) {
+  const el = document.getElementById(`my-gen-detail-${gen}`);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
 
   async function cancelPre(activityId, name, phone4) {
     if (!confirm('정말 신청을 취소할까요?')) return;
@@ -540,16 +542,18 @@ async function loadMyStatus() {
     }
   }
 
-  function resetMyPage() {
-    document.getElementById('my-form').style.display = 'block';
-    document.getElementById('my-status').style.display = 'none';
-    document.getElementById('my-name').value = '';
-    document.getElementById('my-phone').value = '';
-    const btn = document.querySelector('#section-my .btn');
-    btn.disabled = false; btn.textContent = '조회하기';
-    const msg = document.getElementById('my-msg');
-    msg.className = 'msg'; msg.textContent = '';
-  }
+function resetMyPage() {
+  document.getElementById('my-form').style.display = 'block';
+  document.getElementById('my-status').style.display = 'none';
+  document.getElementById('my-name').value = '';
+  document.getElementById('my-phone').value = '';
+  document.getElementById('my-gen-list').innerHTML = '';
+  myStatusData = null;
+  const btn = document.querySelector('#section-my .btn');
+  btn.disabled = false; btn.textContent = '조회하기';
+  const msg = document.getElementById('my-msg');
+  msg.className = 'msg'; msg.textContent = '';
+}
 
   loadActivities();
 </script>
