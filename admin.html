@@ -392,7 +392,7 @@ function renderMemberList() {
     return `
     <div class="list-item" ${isRefund ? 'style="opacity:0.5;"' : ''}>
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div class="list-item-title">${m['이름']} <span style="font-size:12px; color:#888; font-weight:400;">(${stat.total}/${stat.attended})</span> ${isRefund ? '<span class="badge badge-red">환불</span>' : ''}</div>
+        <div class="list-item-title">${m['이름']} ${m.isNew ? '❤️' : ''} <span style="font-size:12px; color:#888; font-weight:400;">(${stat.total}/${stat.attended})</span> ${isRefund ? '<span class="badge badge-red">환불</span>' : ''}</div>
         <span style="font-size:12px; color:#888;">${m['전화번호']}</span>
       </div>
       <div class="btn-row" style="margin-top:8px;">
