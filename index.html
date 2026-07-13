@@ -209,9 +209,9 @@
     return res.json();
   }
 
-  async function loadActivities() {
+async function loadActivities() {
     try {
-      const data = await api({ action: 'getActivities' });
+      const data = await api({ action: 'getActivities', generation: CONFIG.GENERATION });
       if (data.success) {
         allActivities = data.activities.filter(a =>
           String(a['활성화']).toUpperCase() === 'TRUE'
@@ -229,15 +229,27 @@
           attendSel.innerHTML += `<option value="${act['활동ID']}">${label}</option>`;
           preSel.innerHTML += `<option value="${act['활동ID']}">${label}</option>`;
         });
-       // 다음 활동 헤더
-  const today = new Date(); today.setHours(0,0,0,0);
-  const upcoming = data.activities
-  .filter(a => new Date(String(a['날짜']).split('T')[0]) >= today)
-  .sort((a, b) => new Date(String(a['날짜']).split('T')[0]) - new Date(String(b['날짜']).split('T')[0]));
-  renderNextActivityHeader(upcoming[0] || null);
+        const today = new Date(); today.setHours(0,0,0,0);
+        const upcoming = data.activities
+        .filter(a => new Date(String(a['날짜']).split('T')[0]) >= today)
+        .sort((a, b) => new Date(String(a['날짜']).split('T')[0]) - new Date(String(b['날짜']).split('T')[0]));
+        renderNextActivityHeader(upcoming[0] || null);
       }
     } catch(e) { console.error('활동 목록 로드 실패', e); }
   }
+ 
+function groupByGeneration(items) {
+  const groups = {};
+  items.forEach(item => {
+    const gen = item.generation || '기타';
+    if (!groups[gen]) groups[gen] = [];
+    groups[gen].push(item);
+  });
+  return Object.keys(groups)
+    .sort((a, b) => Number(b) - Number(a))
+    .map(gen => ({ gen, items: groups[gen] }));
+}
+ 
 function renderNextActivityHeader(act) {
   const header = document.getElementById('next-activity-header');
   const nameEl = document.getElementById('next-activity-name');
@@ -450,59 +462,69 @@ async function submitPre() {
 }
 
 async function loadMyStatus() {
-  const name = document.getElementById('my-name').value.trim();
-  const phone4 = document.getElementById('my-phone').value.trim();
-  if (!name || phone4.length !== 4) {
-    showMsg('my-msg', '이름과 전화번호 뒷 4자리를 입력해주세요.', 'error'); return;
-  }
-  const btn = document.querySelector('#section-my .btn');
-  btn.disabled = true; btn.textContent = '조회 중...';
-  try {
-    const res = await api({ action: 'getMemberStatus', name, phone4, generation: CONFIG.GENERATION });
-    if (!res.success) {
-      showMsg('my-msg', res.message, 'error');
+    const name = document.getElementById('my-name').value.trim();
+    const phone4 = document.getElementById('my-phone').value.trim();
+    if (!name || phone4.length !== 4) {
+      showMsg('my-msg', '이름과 전화번호 뒷 4자리를 입력해주세요.', 'error'); return;
+    }
+    const btn = document.querySelector('#section-my .btn');
+    btn.disabled = true; btn.textContent = '조회 중...';
+    try {
+      const res = await api({ action: 'getMemberStatus', name, phone4, generation: CONFIG.GENERATION });
+      if (!res.success) {
+        showMsg('my-msg', res.message, 'error');
+        btn.disabled = false; btn.textContent = '조회하기';
+        return;
+      }
+      document.getElementById('my-form').style.display = 'none';
+      document.getElementById('my-status').style.display = 'block';
+      document.getElementById('my-name-display').textContent = res.member.name + '님';
+
+      const preList = document.getElementById('my-pre-list');
+      const preGroups = groupByGeneration(res.preRegistered);
+      if (preGroups.length === 0) {
+        preList.innerHTML = '<div class="empty-state">신청한 활동이 없어요</div>';
+      } else {
+        preList.innerHTML = preGroups.map(g => `
+          <div class="section-label">${g.gen}기</div>
+          ${g.items.map(r => `
+            <div class="status-card">
+              <div class="status-card-title">
+                ${r.activityName}
+                <span class="status-badge ${r.paid ? 'badge-green' : 'badge-red'}">
+                  ${r.paid ? '납부완료' : '미납'}
+                </span>
+              </div>
+              <button onclick="cancelPre('${r.activityId}', '${name}', '${phone4}')"
+                style="font-size:12px; color:#E24B4A; background:none; border:none; cursor:pointer; margin-top:4px;">
+                신청 취소
+              </button>
+            </div>`).join('')}
+        `).join('');
+      }
+
+      const attList = document.getElementById('my-att-list');
+      const attGroups = groupByGeneration(res.attended);
+      if (attGroups.length === 0) {
+        attList.innerHTML = '<div class="empty-state">출석한 활동이 없어요</div>';
+      } else {
+        attList.innerHTML = attGroups.map(g => `
+          <div class="section-label">${g.gen}기</div>
+          ${g.items.map(r => `
+            <div class="status-card">
+              <div class="status-card-title">
+                ${r.activityName}
+                <span class="status-badge badge-green">출석</span>
+              </div>
+              <div style="font-size:12px; color:#888; margin-top:2px;">${r.time}</div>
+            </div>`).join('')}
+        `).join('');
+      }
+    } catch(e) {
+      showMsg('my-msg', '오류가 발생했습니다. 다시 시도해주세요.', 'error');
       btn.disabled = false; btn.textContent = '조회하기';
-      return;
     }
-    document.getElementById('my-form').style.display = 'none';
-    document.getElementById('my-status').style.display = 'block';
-    document.getElementById('my-name-display').textContent = res.member.name + '님';
-    const preList = document.getElementById('my-pre-list');
-    if (res.preRegistered.length === 0) {
-      preList.innerHTML = '<div class="empty-state">신청한 활동이 없어요</div>';
-    } else {
-      preList.innerHTML = res.preRegistered.map(r => `
-        <div class="status-card">
-          <div class="status-card-title">
-            ${r.activityName}
-            <span class="status-badge ${r.paid ? 'badge-green' : 'badge-red'}">
-              ${r.paid ? '납부완료' : '미납'}
-            </span>
-          </div>
-          <button onclick="cancelPre('${r.activityId}', '${name}', '${phone4}')"
-            style="font-size:12px; color:#E24B4A; background:none; border:none; cursor:pointer; margin-top:4px;">
-            신청 취소
-          </button>
-        </div>`).join('');
-    }
-    const attList = document.getElementById('my-att-list');
-    if (res.attended.length === 0) {
-      attList.innerHTML = '<div class="empty-state">출석한 활동이 없어요</div>';
-    } else {
-      attList.innerHTML = res.attended.map(r => `
-        <div class="status-card">
-          <div class="status-card-title">
-            ${r.activityName}
-            <span class="status-badge badge-green">출석</span>
-          </div>
-          <div style="font-size:12px; color:#888; margin-top:2px;">${r.time}</div>
-        </div>`).join('');
-    }
-  } catch(e) {
-    showMsg('my-msg', '오류가 발생했습니다. 다시 시도해주세요.', 'error');
-    btn.disabled = false; btn.textContent = '조회하기';
   }
-}
 
   async function cancelPre(activityId, name, phone4) {
     if (!confirm('정말 신청을 취소할까요?')) return;
