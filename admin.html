@@ -393,7 +393,10 @@ function renderMemberList() {
     <div class="list-item" ${isRefund ? 'style="opacity:0.5;"' : ''}>
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div class="list-item-title">${m['이름']} ${m.isNew ? '❤️' : ''} <span style="font-size:12px; color:#888; font-weight:400;">(${stat.total}/${stat.attended})</span> ${isRefund ? '<span class="badge badge-red">환불</span>' : ''}</div>
-        <span style="font-size:12px; color:#888;">${m['전화번호']}</span>
+        <div style="text-align:right;">
+          <span style="font-size:12px; color:#888;">${m['전화번호']}</span><br>
+          <button class="btn-sm btn-gray" style="margin-top:4px; padding:2px 8px;" onclick="toggleEditMember(${i})" title="정보 수정">✏️</button>
+        </div>
       </div>
       <div class="btn-row" style="margin-top:8px;">
         <button class="btn-sm ${String(m['카톡입장']).toUpperCase()==='TRUE' ? 'btn-green' : 'btn-gray'}"
@@ -403,8 +406,66 @@ function renderMemberList() {
         <button class="btn-sm ${String(m['환불여부']).toUpperCase()==='TRUE' ? 'btn-red' : 'btn-gray'}"
           onclick="toggleMember(${i}, '환불여부')">환불 ${String(m['환불여부']).toUpperCase()==='TRUE' ? '✓' : '✗'}</button>
       </div>
+      <div id="edit-member-${i}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+        <label style="margin-top:0;">이름</label>
+        <input type="text" id="edit-member-name-${i}" value="${m['이름']}">
+        <label>전화번호 (바꿀 때만 입력, 비워두면 유지)</label>
+        <input type="text" id="edit-member-phone-${i}" placeholder="${m['전화번호']}">
+        <label>생년월일</label>
+        <input type="text" id="edit-member-birth-${i}" value="${m['생년월일'] || ''}">
+        <label>인식코드</label>
+        <input type="text" id="edit-member-code-${i}" value="${m['인식코드'] || ''}">
+        <label>1365 ID</label>
+        <input type="text" id="edit-member-1365-${i}" value="${m['1365 ID'] || ''}">
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn-sm btn-green" style="flex:1; padding:10px;" onclick="saveEditMember(${i})">저장</button>
+          <button class="btn-sm btn-gray" style="flex:1; padding:10px;" onclick="toggleEditMember(${i})">취소</button>
+        </div>
+        <div class="msg" id="edit-member-msg-${i}"></div>
+      </div>
     </div>`;
   }).join('');
+}
+
+function toggleEditMember(idx) {
+  const el = document.getElementById(`edit-member-${idx}`);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveEditMember(idx) {
+  const m = allMembers[idx];
+  let curName = m['이름'];
+  let curPhone4 = String(m['전화번호']).replace(/-/g, '').replace(/\*/g, '').slice(-4);
+
+  const newName = document.getElementById(`edit-member-name-${idx}`).value.trim();
+  const newPhoneRaw = document.getElementById(`edit-member-phone-${idx}`).value.trim();
+  const newBirth = document.getElementById(`edit-member-birth-${idx}`).value.trim();
+  const newCode = document.getElementById(`edit-member-code-${idx}`).value.trim();
+  const new1365 = document.getElementById(`edit-member-1365-${idx}`).value.trim();
+
+  if (!newName) { showMsg(`edit-member-msg-${idx}`, '이름은 필수예요.', 'error'); return; }
+
+  const changes = [];
+  if (newName !== m['이름']) changes.push({ field: '이름', value: newName });
+  if (newPhoneRaw) changes.push({ field: '전화번호', value: newPhoneRaw });
+  if (newBirth !== (m['생년월일'] || '')) changes.push({ field: '생년월일', value: newBirth });
+  if (newCode !== String(m['인식코드'] || '')) changes.push({ field: '인식코드', value: newCode });
+  if (new1365 !== (m['1365 ID'] || '')) changes.push({ field: '1365 ID', value: new1365 });
+
+  if (changes.length === 0) { toggleEditMember(idx); return; }
+
+  for (const change of changes) {
+    const res = await api({ action: 'updateMember', name: curName, phone4: curPhone4, field: change.field, value: change.value, generation: currentGen });
+    if (!res.success) {
+      showMsg(`edit-member-msg-${idx}`, res.message, 'error');
+      return;
+    }
+    if (change.field === '이름') curName = change.value;
+    if (change.field === '전화번호') curPhone4 = String(change.value).replace(/-/g, '').slice(-4);
+  }
+
+  await loadMembers();
 }
 
 async function toggleMember(idx, field) {
