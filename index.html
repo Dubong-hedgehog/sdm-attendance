@@ -664,9 +664,10 @@ function runCountdown(callback) {
     showStep();
   }
 
-  async function endGame() {
+async function endGame() {
     running = false;
     bgmAudio.pause();
+    playGameOverSound();
     if (orientationHandler) window.removeEventListener('deviceorientation', orientationHandler);
     const finalScore = Math.floor(score / 10);
     await api({ action: 'saveGameScore', generation, name, game: '연탄나르기', score: finalScore });
@@ -756,6 +757,12 @@ function playHitSound() {
 const bgmAudio = new Audio('background_1.mp3');
 bgmAudio.loop = true;
 bgmAudio.volume = 0.35;
+
+ const gameOverSound = new Audio('gameover.mp3');
+function playGameOverSound() {
+  gameOverSound.currentTime = 0;
+  gameOverSound.play();
+}
 
 
 async function submitAttend() {
