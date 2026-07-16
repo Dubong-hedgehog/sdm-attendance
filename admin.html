@@ -279,17 +279,11 @@ async function loadDashboard() {
     attendance.forEach(r => {
       if (actMap[r['활동ID']]) actMap[r['활동ID']].count++;
     });
-    const pastActIds = getCountedPastActivityIds();
-    const actCount = pastActIds.size;
-    const pastAttendance = attendance.filter(r => pastActIds.has(r['활동ID']));
-    const memberAttMap = {};
-    pastAttendance.forEach(r => {
-      if (!memberAttMap[r['이름']]) memberAttMap[r['이름']] = new Set();
-      memberAttMap[r['이름']].add(r['활동ID']);
-    });
-    const perfectMembers = Object.entries(memberAttMap)
-      .filter(([_, acts]) => acts.size === actCount && actCount > 0)
-      .map(([name]) => name);
+
+    const lbRes = await api({ action: 'getLeaderboard', generation: currentGen });
+    const ranking = lbRes.success ? lbRes.ranking : [];
+    const crownCount = ranking.filter(r => r.tier === 'crown').length;
+
     let html = `
       <div class="stat-grid">
         <div class="stat-card">
@@ -297,20 +291,21 @@ async function loadDashboard() {
           <div class="stat-val">${totalMembers}명</div>
         </div>
         <div class="stat-card" onclick="togglePerfectList()" style="cursor:pointer;">
-          <div class="stat-label">개근자 (클릭)</div>
-          <div class="stat-val green">${perfectMembers.length}명</div>
+          <div class="stat-label">출석 랭킹 (클릭)</div>
+          <div class="stat-val green">${crownCount}명 개근</div>
         </div>
       </div>`;
-    html += `<div id="perfect-list" style="display:none; background:#E1F5EE; border-radius:10px; padding:12px 14px; margin-bottom:16px;">
-      <div style="font-size:13px; font-weight:500; color:#0F6E56; margin-bottom:8px;">개근자 목록 (${perfectMembers.length}명)</div>
-      ${perfectMembers.length > 0
-        ? perfectMembers.map(name => `
-          <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #C6F0E0;">
-            <div style="width:28px; height:28px; border-radius:50%; background:#1D9E75; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:500; color:#fff; flex-shrink:0;">${name[0]}</div>
-            <span style="font-size:14px; color:#0F6E56; font-weight:500;">${name}</span>
-            <span style="font-size:11px; color:#0F6E56; margin-left:auto;">개근</span>
+    html += `<div id="perfect-list" style="display:none; background:#f8f8f8; border-radius:10px; padding:12px 14px; margin-bottom:16px;">
+      <div style="font-size:13px; font-weight:500; color:#555; margin-bottom:8px;">출석 랭킹</div>
+      ${ranking.length > 0
+        ? ranking.map(r => `
+          <div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #eee;">
+            <div style="width:20px; text-align:center; font-size:13px; font-weight:700; color:#888;">${r.rank}</div>
+            <div style="width:20px; text-align:center; font-size:16px;">${r.tier === 'crown' ? '👑' : r.tier === 'medal' ? '🥇' : ''}</div>
+            <span style="flex:1; font-size:14px; color:#333; font-weight:500;">${r.name}</span>
+            <span style="font-size:12px; color:#888;">${r.attended}/${r.total}</span>
           </div>`).join('')
-        : '<div style="font-size:13px; color:#0F6E56;">아직 개근자가 없어요</div>'
+        : '<div style="font-size:13px; color:#aaa;">출석 기록이 없어요</div>'
       }
     </div>`;
     html += '<h3>활동별 출석 현황</h3>';
@@ -321,6 +316,7 @@ async function loadDashboard() {
           <div class="list-item-sub">출석 ${act.count}명 / 전체 ${totalMembers}명</div>
           <div class="btn-row">
             <button class="btn-sm btn-blue" onclick="toggleAttendanceDetail('${activityId}')">출석명단</button>
+            <button class="btn-sm btn-gray" onclick="downloadAttendanceExcel('${activityId}', '${act.name}')">엑셀 다운로드</button>
             ${act.is1365 ? `<button class="btn-sm btn-green" onclick="download1365('${activityId}', '${act.name}')">1365 내보내기</button>` : ''}
           </div>
           <div id="att-detail-${activityId}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;"></div>
