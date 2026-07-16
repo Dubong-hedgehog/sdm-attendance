@@ -243,15 +243,16 @@ async function loadAll() {
 async function loadAdminBoardList() {
   const list = document.getElementById('admin-board-list');
   list.innerHTML = '<div class="empty">불러오는 중...</div>';
-  const res = await api({ action: 'getBoardPosts' });
+  const res = await api({ action: 'getBoardPosts', generation: currentGen });
   if (!res.success) { list.innerHTML = '<div class="empty">불러오기 실패</div>'; return; }
   if (res.posts.length === 0) { list.innerHTML = '<div class="empty">등록된 게시글이 없어요</div>'; return; }
   list.innerHTML = res.posts.map(p => `
     <div class="list-item">
       <div class="list-item-title">${p.title} <span class="badge ${p.status==='모집완료' ? 'badge-gray' : p.status==='소셜링 취소' ? 'badge-red' : 'badge-green'}">${p.status}</span></div>
-      <div class="list-item-sub">${p.author} · 최대 ${p.maxPeople}명(호스트 포함) · ${String(p.createdAt).substring(0,16)}</div>
+      <div class="list-item-sub">${p.author} · 최대 ${p.maxPeople}명(호스트 포함)${p.host ? ' · 호스트: ' + p.host : ''} · ${String(p.createdAt).substring(0,16)}</div>
       <div class="list-item-sub" style="white-space:pre-wrap;">${p.content}</div>
       <div class="btn-row">
+        <button class="btn-sm btn-green" onclick="applyAsHost('${p.id}')">호스트 지원하기</button>
         <select onchange="changeAdminBoardStatus('${p.id}', this.value)">
           <option value="">상태변경</option>
           <option value="호스트 모집 중">호스트 모집 중</option>
@@ -264,6 +265,14 @@ async function loadAdminBoardList() {
   `).join('');
 }
 
+async function applyAsHost(id) {
+  const hostName = prompt('호스트로 등록할 운영진 이름을 입력해주세요.');
+  if (!hostName) return;
+  const res = await api({ action: 'applyBoardHost', id, hostName: hostName.trim() });
+  if (res.success) loadAdminBoardList();
+  else alert(res.message);
+}
+ 
 async function changeAdminBoardStatus(id, status) {
   if (!status) return;
   const res = await api({ action: 'updateBoardPostStatus', id, isAdmin: true, status });
