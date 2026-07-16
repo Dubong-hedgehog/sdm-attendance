@@ -89,6 +89,9 @@
   .badge-gray { background: #f0f0f0; color: #888; }
   .section-label { font-size: 12px; font-weight: 700; color: #999; margin: 16px 0 8px; letter-spacing: 0.5px; text-transform: uppercase; }
   .empty-state { text-align: center; padding: 24px 0; color: #ccc; font-size: 14px; }
+
+textarea { width: 100%; padding: 13px 16px; border: 1.5px solid #eee; border-radius: 12px; font-size: 15px; outline: none; transition: border 0.2s; background: #fff; font-family: inherit; resize: vertical; min-height: 80px; }
+textarea:focus { border-color: #1D9E75; background: #f9fffe; }
 </style>
 </head>
 <body>
@@ -114,6 +117,7 @@
     <div class="tab active" onclick="switchTab('attend')">출석체크</div>
     <div class="tab" onclick="switchTab('pre')">사전신청</div>
     <div class="tab" onclick="switchTab('my')">마이페이지</div>
+    <div class="tab" onclick="switchTab('board')">게시판</div>
     <div class="tab" onclick="switchTab('game')">미니게임</div>
   </div>
 
@@ -192,6 +196,41 @@
     </div>
   </div>
 
+<!-- 게시판 -->
+<div class="section" id="section-board">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h2 style="font-size:16px; font-weight:700;">게시판</h2>
+    <button class="btn btn-outline-red" style="width:auto; margin:0; padding:8px 14px; color:#1D9E75; border-color:#1D9E75;" onclick="openBoardWrite()">글쓰기</button>
+  </div>
+  <div id="board-list" style="margin-top:14px;"></div>
+</div>
+
+<div id="board-write-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:999; align-items:center; justify-content:center;">
+  <div class="card" style="max-width:340px; margin:0; padding:24px; max-height:85vh; overflow-y:auto;">
+    <h2 style="margin-bottom:16px; font-size:18px;">게시글 작성</h2>
+    <label>종류</label>
+    <div class="select-wrap">
+      <select id="board-write-type">
+        <option value="소셜링 제안">소셜링 제안</option>
+        <option value="호스트공고">호스트공고</option>
+      </select>
+    </div>
+    <label>제목</label>
+    <input type="text" id="board-write-title" placeholder="제목을 입력해주세요">
+    <label>내용</label>
+    <textarea id="board-write-content" placeholder="내용을 입력해주세요"></textarea>
+    <label>이름</label>
+    <input type="text" id="board-write-name" placeholder="홍길동">
+    <label>전화번호 뒷 4자리</label>
+    <input type="text" id="board-write-phone" placeholder="1234" maxlength="4" inputmode="numeric">
+    <label>비밀번호 (수정/삭제 시 필요)</label>
+    <input type="text" id="board-write-password" placeholder="비밀번호">
+    <button class="btn" onclick="submitBoardPost()">등록하기</button>
+    <button class="btn btn-outline-red" style="margin-top:8px;" onclick="closeBoardWrite()">취소</button>
+    <div class="msg" id="board-write-msg"></div>
+  </div>
+</div>
+ 
 <!-- 미니게임 -->
   <div class="section" id="section-game">
     <h2>미니게임</h2>
@@ -255,6 +294,7 @@
 <script>
 let allActivities = [];
 let gameRankingLoaded = false;
+let boardLoaded = false;
 
   async function api(body) {
     const res = await fetch(CONFIG.API_URL, {
@@ -419,7 +459,7 @@ function onPreActivityChange() {
     }
   }
 
-const TAB_ORDER = ['attend', 'pre', 'my', 'game'];
+const TAB_ORDER = ['attend', 'pre', 'my', 'board', 'game'];
 function switchTab(tab) {
   document.querySelectorAll('#main-tabs > .tab').forEach((t, i) => {
     t.classList.toggle('active', TAB_ORDER[i] === tab);
@@ -427,6 +467,7 @@ function switchTab(tab) {
   TAB_ORDER.forEach(t => {
     document.getElementById('section-' + t).classList.toggle('active', t === tab);
   });
+  if (tab === 'board' && !boardLoaded) { boardLoaded = true; loadBoardPosts(); }
   if (tab === 'game' && !gameRankingLoaded) { gameRankingLoaded = true; loadGameRanking(); }
 }
 
@@ -722,6 +763,133 @@ async function loadGameRanking() {
     el.textContent = msg;
     el.className = 'msg ' + type;
   }
+
+ let boardPosts = [];
+
+async function loadBoardPosts() {
+  const list = document.getElementById('board-list');
+  list.innerHTML = '<div class="empty-state">불러오는 중...</div>';
+  const res = await api({ action: 'getBoardPosts' });
+  if (!res.success) { list.innerHTML = '<div class="empty-state">불러오기 실패</div>'; return; }
+  boardPosts = res.posts;
+  renderBoardList();
+}
+
+function statusBadgeClass(status) {
+  if (status === '모집완료') return 'badge-gray';
+  if (status === '소셜링 취소') return 'badge-red';
+  return 'badge-green';
+}
+
+function renderBoardList() {
+  const list = document.getElementById('board-list');
+  if (boardPosts.length === 0) { list.innerHTML = '<div class="empty-state">등록된 게시글이 없어요</div>'; return; }
+  list.innerHTML = boardPosts.map(p => `
+    <div class="status-card">
+      <div style="cursor:pointer;" onclick="toggleBoardDetail('${p.id}')">
+        <div class="status-card-title">
+          <span class="status-badge badge-gray">${p.type}</span> ${p.title}
+          <span class="status-badge ${statusBadgeClass(p.status)}">${p.status}</span>
+        </div>
+        <div style="font-size:12px; color:#888; margin-top:2px;">${p.author} · ${String(p.createdAt).substring(0,16)}</div>
+      </div>
+      <div id="board-detail-${p.id}" style="display:none; margin-top:10px; border-top:1px solid #f0f0f0; padding-top:10px;">
+        <p style="font-size:14px; color:#333; white-space:pre-wrap;">${p.content}</p>
+        <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; align-items:center;">
+          <button class="btn-sm btn-gray" style="width:auto; margin:0; padding:6px 12px; border-radius:8px; border:none; background:#378ADD; color:#fff; cursor:pointer; font-size:12px;" onclick="toggleBoardEdit('${p.id}')">수정</button>
+          <button class="btn-sm btn-gray" style="width:auto; margin:0; padding:6px 12px; border-radius:8px; border:none; background:#E24B4A; color:#fff; cursor:pointer; font-size:12px;" onclick="deleteBoardPostPrompt('${p.id}')">삭제</button>
+          <select onchange="changeBoardStatusPrompt('${p.id}', this.value)" style="font-size:12px; padding:6px 8px; border-radius:8px; border:1px solid #eee; width:auto;">
+            <option value="">상태변경</option>
+            <option value="호스트 모집 중">호스트 모집 중</option>
+            <option value="모집완료">모집완료</option>
+            <option value="소셜링 취소">소셜링 취소</option>
+          </select>
+        </div>
+        <div id="board-edit-${p.id}" style="display:none; margin-top:10px;">
+          <label>제목</label>
+          <input type="text" id="board-edit-title-${p.id}" value="${p.title}">
+          <label>내용</label>
+          <textarea id="board-edit-content-${p.id}">${p.content}</textarea>
+          <label>비밀번호</label>
+          <input type="text" id="board-edit-password-${p.id}" placeholder="비밀번호">
+          <button class="btn" style="margin-top:10px;" onclick="saveBoardEdit('${p.id}')">저장</button>
+          <div class="msg" id="board-edit-msg-${p.id}"></div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleBoardDetail(id) {
+  const el = document.getElementById(`board-detail-${id}`);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleBoardEdit(id) {
+  const el = document.getElementById(`board-edit-${id}`);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveBoardEdit(id) {
+  const title = document.getElementById(`board-edit-title-${id}`).value.trim();
+  const content = document.getElementById(`board-edit-content-${id}`).value.trim();
+  const password = document.getElementById(`board-edit-password-${id}`).value.trim();
+  if (!title || !content || !password) {
+    showMsg(`board-edit-msg-${id}`, '모든 항목을 입력해주세요.', 'error'); return;
+  }
+  const res = await api({ action: 'updateBoardPost', id, password, title, content });
+  if (res.success) { await loadBoardPosts(); }
+  else { showMsg(`board-edit-msg-${id}`, res.message, 'error'); }
+}
+
+async function deleteBoardPostPrompt(id) {
+  const password = prompt('삭제하려면 비밀번호를 입력해주세요.');
+  if (password === null) return;
+  const res = await api({ action: 'deleteBoardPost', id, password });
+  if (res.success) { await loadBoardPosts(); }
+  else { alert(res.message); }
+}
+
+async function changeBoardStatusPrompt(id, status) {
+  if (!status) return;
+  const password = prompt('상태를 변경하려면 비밀번호를 입력해주세요.');
+  if (password === null) { renderBoardList(); return; }
+  const res = await api({ action: 'updateBoardPostStatus', id, password, status });
+  if (res.success) { await loadBoardPosts(); }
+  else { alert(res.message); renderBoardList(); }
+}
+
+function openBoardWrite() {
+  document.getElementById('board-write-type').value = '소셜링 제안';
+  document.getElementById('board-write-title').value = '';
+  document.getElementById('board-write-content').value = '';
+  document.getElementById('board-write-name').value = '';
+  document.getElementById('board-write-phone').value = '';
+  document.getElementById('board-write-password').value = '';
+  document.getElementById('board-write-msg').textContent = '';
+  document.getElementById('board-write-modal').style.display = 'flex';
+}
+
+function closeBoardWrite() {
+  document.getElementById('board-write-modal').style.display = 'none';
+}
+
+async function submitBoardPost() {
+  const type = document.getElementById('board-write-type').value;
+  const title = document.getElementById('board-write-title').value.trim();
+  const content = document.getElementById('board-write-content').value.trim();
+  const name = document.getElementById('board-write-name').value.trim();
+  const phone4 = document.getElementById('board-write-phone').value.trim();
+  const password = document.getElementById('board-write-password').value.trim();
+  if (!title || !content || !name || phone4.length !== 4 || !password) {
+    showMsg('board-write-msg', '모든 항목을 정확히 입력해주세요.', 'error'); return;
+  }
+  const res = await api({ action: 'createBoardPost', type, title, content, name, phone4, password });
+  if (res.success) { closeBoardWrite(); await loadBoardPosts(); }
+  else { showMsg('board-write-msg', res.message, 'error'); }
+}
  
 let audioCtx = null;
 function getAudioCtx() {
