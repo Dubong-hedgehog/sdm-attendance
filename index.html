@@ -462,17 +462,30 @@ function launchCoalGame(generation, name) {
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
+  const ITEM_ICON = { star: '⭐', shrink: '🔽', mushroom: '🍄', grow: '🔼' };
 
-  let player = { x: W / 2, y: H - 60, w: 36, h: 36 };
+  let player = { x: W / 2, y: H - 60, w: 36, h: 36, scale: 1 };
   let obstacles = [];
+  let items = [];
   let score = 0;
   let lives = 3;
   let speed = 2.5;
   let spawnTimer = 0;
   let spawnInterval = 90;
+  let itemTimer = 0;
+  let itemInterval = randItemInterval();
+  let invincible = false;
+  let invincibleFrames = 0;
+  let obstacleShrinkFrames = 0;
+  let obstacleGrowFrames = 0;
+  let frameCount = 0;
   let running = true;
   let dragActive = false;
   tiltX = 0;
+
+  function randItemInterval() {
+    return Math.floor((10 + Math.random() * 5) * 60);
+  }
 
   function requestTiltPermission() {
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -492,7 +505,8 @@ function launchCoalGame(generation, name) {
   function onDragMove(clientX) {
     const rect = canvas.getBoundingClientRect();
     const relX = clientX - rect.left;
-    player.x = Math.max(player.w / 2, Math.min(W - player.w / 2, relX));
+    const half = (player.w * player.scale) / 2;
+    player.x = Math.max(half, Math.min(W - half, relX));
   }
   canvas.onmousedown = (e) => { dragActive = true; onDragMove(e.clientX); };
   canvas.onmousemove = (e) => { if (dragActive) onDragMove(e.clientX); };
@@ -504,41 +518,115 @@ function launchCoalGame(generation, name) {
   updateLives();
 
   function spawnObstacle() {
-    const w = 40 + Math.random() * 30;
-    obstacles.push({ x: Math.random() * (W - w), y: -30, w, h: 24 });
+    let w = 40 + Math.random() * 30;
+    if (obstacleShrinkFrames > 0) w *= 0.5;
+    else if (obstacleGrowFrames > 0) w *= 1.5;
+    const h = w * 0.6;
+    obstacles.push({ x: Math.random() * (W - w), y: -30, w, h });
+  }
+
+  function spawnItem() {
+    const types = ['star', 'shrink', 'mushroom', 'grow'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const w = 28;
+    items.push({ x: Math.random() * (W - w), y: -30, w, h: w, type });
+  }
+
+  function applyItem(type) {
+    if (type === 'star') {
+      invincible = true;
+      invincibleFrames = 120;
+    } else if (type === 'shrink') {
+      obstacleShrinkFrames = 480;
+      obstacleGrowFrames = 0;
+    } else if (type === 'mushroom') {
+      player.scale = Math.min(player.scale * 1.05, 2);
+    } else if (type === 'grow') {
+      obstacleGrowFrames = 480;
+      obstacleShrinkFrames = 0;
+    }
+  }
+
+  function drawPlayer() {
+    const s = player.scale;
+    const blink = invincible && Math.floor(frameCount / 5) % 2 === 0;
+    if (blink) return;
+    ctx.fillStyle = '#3B2E2A';
+    ctx.fillRect(player.x - 8 * s, player.y - 6 * s, 16 * s, 24 * s);
+    ctx.fillStyle = '#F5C6A0';
+    ctx.beginPath();
+    ctx.arc(player.x, player.y - 14 * s, 8 * s, 0, Math.PI * 2);
+    ctx.fill();
+    [{ dx: -10 * s, dy: -22 * s }, { dx: 0, dy: -26 * s }, { dx: 10 * s, dy: -22 * s }].forEach(p => {
+      ctx.fillStyle = '#222';
+      ctx.beginPath();
+      ctx.arc(player.x + p.dx, player.y + p.dy, 7 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#555';
+      ctx.beginPath();
+      ctx.arc(player.x + p.dx, player.y + p.dy, 2.5 * s, 0, Math.PI * 2);
+      ctx.fill();
+    });
   }
 
   function loop() {
     if (!running) return;
+    frameCount++;
     ctx.clearRect(0, 0, W, H);
 
     if (Math.abs(tiltX) > 2) {
       player.x += tiltX * 0.8;
-      player.x = Math.max(player.w / 2, Math.min(W - player.w / 2, player.x));
+      const half = (player.w * player.scale) / 2;
+      player.x = Math.max(half, Math.min(W - half, player.x));
     }
 
     spawnTimer++;
     if (spawnTimer >= spawnInterval) { spawnObstacle(); spawnTimer = 0; }
+    itemTimer++;
+    if (itemTimer >= itemInterval) { spawnItem(); itemTimer = 0; itemInterval = randItemInterval(); }
+
+    if (invincibleFrames > 0) { invincibleFrames--; if (invincibleFrames === 0) invincible = false; }
+    if (obstacleShrinkFrames > 0) obstacleShrinkFrames--;
+    if (obstacleGrowFrames > 0) obstacleGrowFrames--;
+
+    const pw = player.w * player.scale, ph = player.h * player.scale;
 
     obstacles.forEach(o => { o.y += speed; });
     obstacles = obstacles.filter(o => {
       if (o.y > H) return false;
-      const hit = Math.abs((o.x + o.w / 2) - player.x) < (o.w / 2 + player.w / 2) &&
-                  Math.abs((o.y + o.h / 2) - player.y) < (o.h / 2 + player.h / 2);
+      const hit = Math.abs((o.x + o.w / 2) - player.x) < (o.w / 2 + pw / 2) &&
+                  Math.abs((o.y + o.h / 2) - player.y) < (o.h / 2 + ph / 2);
       if (hit) {
-        lives--;
-        updateLives();
-        if (lives <= 0) endGame();
+        if (!invincible) {
+          lives--;
+          updateLives();
+          if (lives <= 0) endGame();
+        }
         return false;
       }
       return true;
     });
 
-    ctx.fillStyle = '#556B2F';
-    obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h));
+    items.forEach(it => { it.y += speed; });
+    items = items.filter(it => {
+      if (it.y > H) return false;
+      const hit = Math.abs((it.x + it.w / 2) - player.x) < (it.w / 2 + pw / 2) &&
+                  Math.abs((it.y + it.h / 2) - player.y) < (it.h / 2 + ph / 2);
+      if (hit) { applyItem(it.type); return false; }
+      return true;
+    });
 
-    ctx.font = '32px sans-serif';
-    ctx.fillText('🚶', player.x - 16, player.y + 12);
+    ctx.fillStyle = '#7d98a1';
+    obstacles.forEach(o => {
+      ctx.beginPath();
+      ctx.ellipse(o.x + o.w / 2, o.y + o.h / 2, o.w / 2, o.h / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.font = '24px sans-serif';
+    items.forEach(it => { ctx.fillText(ITEM_ICON[it.type], it.x, it.y + 20); });
+
+    drawPlayer();
 
     score += 1;
     document.getElementById('game-score').textContent = Math.floor(score / 10);
