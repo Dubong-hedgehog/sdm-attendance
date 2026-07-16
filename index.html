@@ -459,6 +459,10 @@ async function confirmStartGame() {
 
 function launchCoalGame(generation, name) {
   document.getElementById('game-play-overlay').style.display = 'flex';
+   api({ action: 'getGameRanking', game: '연탄나르기' }).then(res => {
+    const best = (res.success && res.ranking && res.ranking.length > 0) ? res.ranking[0].score : 0;
+    document.getElementById('game-best-score').textContent = best;
+  });
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
