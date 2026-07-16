@@ -110,10 +110,12 @@
     </div>
   </div>
 
-  <div class="tabs">
+<div class="tabs" id="main-tabs">
     <div class="tab active" onclick="switchTab('attend')">출석체크</div>
     <div class="tab" onclick="switchTab('pre')">사전신청</div>
     <div class="tab" onclick="switchTab('my')">마이페이지</div>
+    <div class="tab" onclick="switchTab('leaderboard')">리더보드</div>
+    <div class="tab" onclick="switchTab('game')">미니게임</div>
   </div>
 
   <!-- 출석체크 -->
@@ -190,10 +192,62 @@
       <div id="my-gen-list"></div>
     </div>
   </div>
+ <!-- 리더보드 -->
+  <div class="section" id="section-leaderboard">
+    <div class="tabs">
+      <div class="tab active" id="lb-tab-attend" onclick="switchLeaderboardTab('attend')">출석왕</div>
+      <div class="tab" id="lb-tab-game" onclick="switchLeaderboardTab('game')">게임랭킹</div>
+    </div>
+    <div id="lb-panel-attend">
+      <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin:16px 0;">
+        <button onclick="changeLeaderboardGen(-1)" style="border:none; background:none; font-size:20px; color:#888; cursor:pointer;">◀</button>
+        <div id="lb-gen-pills" style="display:flex; gap:6px;"></div>
+        <button onclick="changeLeaderboardGen(1)" style="border:none; background:none; font-size:20px; color:#888; cursor:pointer;">▶</button>
+      </div>
+      <div id="lb-rank-list"></div>
+    </div>
+    <div id="lb-panel-game" style="display:none;">
+      <div class="empty-state">아직 진행 중인 미니게임이 없어요</div>
+    </div>
+  </div>
+
+  <!-- 미니게임 -->
+  <div class="section" id="section-game">
+    <h2>미니게임</h2>
+    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:12px;">
+      <div class="list-item" style="text-align:center;">
+        <div class="game-icon" style="font-size:28px;">🏖️</div>
+        <div style="font-size:14px; font-weight:500; margin-top:6px;">비치플로깅</div>
+        <div style="font-size:12px; color:#888; margin-top:2px;">쓰레기를 빠르게 터치해요</div>
+        <button class="btn-sm btn-gray" style="width:100%; margin-top:10px;" disabled>준비중</button>
+      </div>
+      <div class="list-item" style="text-align:center;">
+        <div class="game-icon" style="font-size:28px;">🌀</div>
+        <div style="font-size:14px; font-weight:500; margin-top:6px;">선풍기닦기</div>
+        <div style="font-size:12px; color:#888; margin-top:2px;">먼지를 문질러 닦아요</div>
+        <button class="btn-sm btn-gray" style="width:100%; margin-top:10px;" disabled>준비중</button>
+      </div>
+      <div class="list-item" style="text-align:center;">
+        <div class="game-icon" style="font-size:28px;">🐾</div>
+        <div style="font-size:14px; font-weight:500; margin-top:6px;">동물봉사</div>
+        <div style="font-size:12px; color:#888; margin-top:2px;">맞는 먹이를 골라줘요</div>
+        <button class="btn-sm btn-gray" style="width:100%; margin-top:10px;" disabled>준비중</button>
+      </div>
+      <div class="list-item" style="text-align:center;">
+        <div class="game-icon" style="font-size:28px;">🔥</div>
+        <div style="font-size:14px; font-weight:500; margin-top:6px;">연탄봉사</div>
+        <div style="font-size:12px; color:#888; margin-top:2px;">기울여서 연탄을 날라요</div>
+        <button class="btn-sm btn-gray" style="width:100%; margin-top:10px;" disabled>준비중</button>
+      </div>
+    </div>
+  </div>
 
 <script src="config.js"></script>
 <script>
-  let allActivities = [];
+let allActivities = [];
+let leaderboardLoaded = false;
+let lbGenerations = [];
+let lbGenIdx = 0;
 
   async function api(body) {
     const res = await fetch(CONFIG.API_URL, {
@@ -358,18 +412,16 @@ function onPreActivityChange() {
     }
   }
 
-  function switchTab(tab) {
-    document.querySelectorAll('.tab').forEach((t, i) => {
-      t.classList.toggle('active',
-        (i === 0 && tab === 'attend') ||
-        (i === 1 && tab === 'pre') ||
-        (i === 2 && tab === 'my')
-      );
-    });
-    document.getElementById('section-attend').classList.toggle('active', tab === 'attend');
-    document.getElementById('section-pre').classList.toggle('active', tab === 'pre');
-    document.getElementById('section-my').classList.toggle('active', tab === 'my');
-  }
+const TAB_ORDER = ['attend', 'pre', 'my', 'leaderboard', 'game'];
+function switchTab(tab) {
+  document.querySelectorAll('#main-tabs > .tab').forEach((t, i) => {
+    t.classList.toggle('active', TAB_ORDER[i] === tab);
+  });
+  TAB_ORDER.forEach(t => {
+    document.getElementById('section-' + t).classList.toggle('active', t === tab);
+  });
+  if (tab === 'leaderboard' && !leaderboardLoaded) loadLeaderboard();
+}
 
   function showMsg(id, msg, type) {
     const el = document.getElementById(id);
@@ -418,6 +470,63 @@ async function submitAttend() {
   }
 }
 
+async function loadLeaderboard() {
+  leaderboardLoaded = true;
+  const res = await api({ action: 'getGenerations' });
+  if (!res.success || res.generations.length === 0) return;
+  lbGenerations = res.generations.map(String);
+  lbGenIdx = lbGenerations.indexOf(String(CONFIG.GENERATION));
+  if (lbGenIdx === -1) lbGenIdx = lbGenerations.length - 1;
+  renderLbGenPills();
+  await loadLbRanking();
+}
+
+function renderLbGenPills() {
+  const wrap = document.getElementById('lb-gen-pills');
+  wrap.innerHTML = lbGenerations.map((g, i) => `
+    <button onclick="jumpLeaderboardGen(${i})" style="padding:6px 14px; border-radius:20px; border:1.5px solid ${i===lbGenIdx?'#1D9E75':'#eee'}; background:${i===lbGenIdx?'#1D9E75':'#fff'}; color:${i===lbGenIdx?'#fff':'#666'}; font-size:13px; font-weight:500;">${g}기</button>
+  `).join('');
+}
+
+function jumpLeaderboardGen(i) {
+  lbGenIdx = i;
+  renderLbGenPills();
+  loadLbRanking();
+}
+
+function changeLeaderboardGen(dir) {
+  const newIdx = lbGenIdx + dir;
+  if (newIdx < 0 || newIdx >= lbGenerations.length) return;
+  lbGenIdx = newIdx;
+  renderLbGenPills();
+  loadLbRanking();
+}
+async function loadLbRanking() {
+  const list = document.getElementById('lb-rank-list');
+  list.innerHTML = '<div class="empty-state">불러오는 중...</div>';
+  const gen = lbGenerations[lbGenIdx];
+  const res = await api({ action: 'getLeaderboard', generation: gen });
+  if (!res.success || res.ranking.length === 0) {
+    list.innerHTML = '<div class="empty-state">등수를 낼 활동 기록이 없어요</div>';
+    return;
+  }
+  list.innerHTML = res.ranking.map(r => `
+    <div class="status-card" style="display:flex; align-items:center; gap:10px;">
+      <div style="width:22px; text-align:center; font-size:14px; font-weight:700; color:#888;">${r.rank}</div>
+      <div style="width:22px; text-align:center; font-size:18px;">${r.tier === 'crown' ? '👑' : r.tier === 'medal' ? '🥇' : ''}</div>
+      <div style="flex:1; font-size:15px; font-weight:500;">${r.name}</div>
+      <div style="font-size:13px; color:#888;">${r.attended}/${r.total}</div>
+    </div>
+  `).join('');
+}
+
+function switchLeaderboardTab(tab) {
+  document.getElementById('lb-tab-attend').classList.toggle('active', tab === 'attend');
+  document.getElementById('lb-tab-game').classList.toggle('active', tab === 'game');
+  document.getElementById('lb-panel-attend').style.display = tab === 'attend' ? 'block' : 'none';
+  document.getElementById('lb-panel-game').style.display = tab === 'game' ? 'block' : 'none';
+}
+ 
 async function submitPre() {
   const activityId = document.getElementById('pre-activity').value;
   const name = document.getElementById('pre-name').value.trim();
