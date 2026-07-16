@@ -248,8 +248,8 @@ async function loadAdminBoardList() {
   if (res.posts.length === 0) { list.innerHTML = '<div class="empty">등록된 게시글이 없어요</div>'; return; }
   list.innerHTML = res.posts.map(p => `
     <div class="list-item">
-      <div class="list-item-title">${p.title} <span class="badge ${p.status==='모집완료' ? 'badge-gray' : p.status==='소셜링 취소' ? 'badge-red' : 'badge-green'}">${p.status}</span></div>}</span></div>
-      <div class="list-item-sub">${p.author} · ${String(p.createdAt).substring(0,16)}</div>
+      <div class="list-item-title">${p.title} <span class="badge ${p.status==='모집완료' ? 'badge-gray' : p.status==='소셜링 취소' ? 'badge-red' : 'badge-green'}">${p.status}</span></div>
+      <div class="list-item-sub">${p.author} · 최대 ${p.maxPeople}명(호스트 포함) · ${String(p.createdAt).substring(0,16)}</div>
       <div class="list-item-sub" style="white-space:pre-wrap;">${p.content}</div>
       <div class="btn-row">
         <select onchange="changeAdminBoardStatus('${p.id}', this.value)">
