@@ -198,27 +198,27 @@
     <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:12px;">
       <div class="list-item" style="text-align:center;">
         <div class="game-icon" style="font-size:28px;">🏖️</div>
-        <div style="font-size:14px; font-weight:500; margin-top:6px;">비치플로깅</div>
+        <div style="font-size:14px; font-weight:500; margin-top:6px;">플로깅 팡</div>
         <div style="font-size:12px; color:#888; margin-top:2px;">쓰레기를 빠르게 터치해요</div>
         <button class="btn-sm btn-gray" style="width:100%; margin-top:10px;" disabled>준비중</button>
       </div>
       <div class="list-item" style="text-align:center;">
         <div class="game-icon" style="font-size:28px;">🌀</div>
-        <div style="font-size:14px; font-weight:500; margin-top:6px;">선풍기닦기</div>
+        <div style="font-size:14px; font-weight:500; margin-top:6px;">먼지닦기</div>
         <div style="font-size:12px; color:#888; margin-top:2px;">먼지를 문질러 닦아요</div>
         <button class="btn-sm btn-gray" style="width:100%; margin-top:10px;" disabled>준비중</button>
       </div>
       <div class="list-item" style="text-align:center;">
         <div class="game-icon" style="font-size:28px;">🐾</div>
-        <div style="font-size:14px; font-weight:500; margin-top:6px;">동물봉사</div>
+        <div style="font-size:14px; font-weight:500; margin-top:6px;">동물퍼즐</div>
         <div style="font-size:12px; color:#888; margin-top:2px;">맞는 먹이를 골라줘요</div>
         <button class="btn-sm btn-gray" style="width:100%; margin-top:10px;" disabled>준비중</button>
       </div>
       <div class="list-item" style="text-align:center;">
         <div class="game-icon" style="font-size:28px;">🔥</div>
-        <div style="font-size:14px; font-weight:500; margin-top:6px;">연탄봉사</div>
+        <div style="font-size:14px; font-weight:500; margin-top:6px;">연탄나르기</div>
         <div style="font-size:12px; color:#888; margin-top:2px;">기울여서 연탄을 날라요</div>
-        <button class="btn-sm btn-green" style="width:100%; margin-top:10px;" onclick="openGameEntry('연탄봉사')">플레이</button>
+        <button class="btn-sm btn-green" style="width:100%; margin-top:10px;" onclick="openGameEntry('연탄나르기')">플레이</button>
       </div>
     </div>
     <hr class="divider">
@@ -669,7 +669,7 @@ function runCountdown(callback) {
     bgmAudio.pause();
     if (orientationHandler) window.removeEventListener('deviceorientation', orientationHandler);
     const finalScore = Math.floor(score / 10);
-    await api({ action: 'saveGameScore', generation, name, game: '연탄봉사', score: finalScore });
+    await api({ action: 'saveGameScore', generation, name, game: '연탄나르기', score: finalScore });
     alert('게임 종료! 점수: ' + finalScore);
     document.getElementById('game-play-overlay').style.display = 'none';
     loadGameRanking();
@@ -694,7 +694,7 @@ function exitGame() {
 }
 
 async function loadGameRanking() {
-  const res = await api({ action: 'getGameRanking', game: '연탄봉사' });
+  const res = await api({ action: 'getGameRanking', game: '연탄나르기' });
   const list = document.getElementById('game-rank-list');
   if (!res.success || res.ranking.length === 0) {
     list.innerHTML = '<div class="empty-state">아직 진행 중인 미니게임이 없어요</div>';
