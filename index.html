@@ -774,7 +774,7 @@ async function loadBoardPosts() {
 }
 
 function statusBadgeClass(status) {
-  if (status === '모집완료') return 'badge-gray';
+  if (status === '매칭완료') return 'badge-gray';
   if (status === '소셜링 취소') return 'badge-red';
   return 'badge-green';
 }
@@ -799,7 +799,7 @@ function renderBoardList() {
           <select onchange="changeBoardStatusPrompt('${p.id}', this.value)" style="font-size:12px; padding:6px 8px; border-radius:8px; border:1px solid #eee; width:auto;">
             <option value="">상태변경</option>
             <option value="호스트 모집 중">호스트 모집 중</option>
-            <option value="모집완료">모집완료</option>
+            <option value="매칭완료">매칭완료</option>
             <option value="소셜링 취소">소셜링 취소</option>
           </select>
         </div>
