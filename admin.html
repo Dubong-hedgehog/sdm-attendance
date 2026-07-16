@@ -88,6 +88,7 @@
       <div class="tab" onclick="switchTab('member')">대원관리</div>
       <div class="tab" onclick="switchTab('activity')">활동관리</div>
       <div class="tab" onclick="switchTab('payment')">납부관리</div>
+      <div class="tab" onclick="switchTab('board')">게시판</div>
     </div>
 
     <!-- 대시보드 -->
@@ -119,7 +120,6 @@
       <div class="msg" id="daily-msg"></div>
     </div>
 
-    <!-- 활동관리 -->
 <!-- 활동관리 -->
     <div class="section" id="section-activity">
       <h2>활동 목록</h2>
@@ -180,6 +180,12 @@
       <input type="text" id="manual-phone" placeholder="1234" maxlength="4" inputmode="numeric">
       <button class="btn" onclick="addManualAttendance()">출석 추가</button>
       <div class="msg" id="manual-msg"></div>
+
+     <!-- 게시판관리 -->
+    <div class="section" id="section-board">
+      <h2>게시판 관리</h2>
+      <div id="admin-board-list"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -232,6 +238,45 @@ async function loadAll() {
   await loadActivities();
   await loadMembers();
   loadDashboard();
+  loadAdminBoardList();
+}
+
+async function loadAdminBoardList() {
+  const list = document.getElementById('admin-board-list');
+  list.innerHTML = '<div class="empty">불러오는 중...</div>';
+  const res = await api({ action: 'getBoardPosts' });
+  if (!res.success) { list.innerHTML = '<div class="empty">불러오기 실패</div>'; return; }
+  if (res.posts.length === 0) { list.innerHTML = '<div class="empty">등록된 게시글이 없어요</div>'; return; }
+  list.innerHTML = res.posts.map(p => `
+    <div class="list-item">
+      <div class="list-item-title">${p.title} <span class="badge badge-gray">${p.type}</span> <span class="badge ${p.status==='모집완료' ? 'badge-gray' : p.status==='소셜링 취소' ? 'badge-red' : 'badge-green'}">${p.status}</span></div>
+      <div class="list-item-sub">${p.author} · ${String(p.createdAt).substring(0,16)}</div>
+      <div class="list-item-sub" style="white-space:pre-wrap;">${p.content}</div>
+      <div class="btn-row">
+        <select onchange="changeAdminBoardStatus('${p.id}', this.value)">
+          <option value="">상태변경</option>
+          <option value="호스트 모집 중">호스트 모집 중</option>
+          <option value="모집완료">모집완료</option>
+          <option value="소셜링 취소">소셜링 취소</option>
+        </select>
+        <button class="btn-sm btn-red" onclick="deleteAdminBoardPost('${p.id}')">삭제</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function changeAdminBoardStatus(id, status) {
+  if (!status) return;
+  const res = await api({ action: 'updateBoardPostStatus', id, isAdmin: true, status });
+  if (res.success) loadAdminBoardList();
+  else alert(res.message);
+}
+
+async function deleteAdminBoardPost(id) {
+  if (!confirm('이 게시글을 삭제할까요?')) return;
+  const res = await api({ action: 'deleteBoardPost', id, isAdmin: true });
+  if (res.success) loadAdminBoardList();
+  else alert(res.message);
 }
 
 async function loadActivities() {
@@ -637,10 +682,11 @@ function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t, i) => {
     t.classList.toggle('active',
       (i===0&&tab==='dashboard')||(i===1&&tab==='member')||
-      (i===2&&tab==='activity')||(i===3&&tab==='payment')
+      (i===2&&tab==='activity')||(i===3&&tab==='payment')||
+      (i===4&&tab==='board')
     );
   });
-  ['dashboard','member','activity','payment'].forEach(t => {
+  ['dashboard','member','activity','payment','board'].forEach(t => {
     document.getElementById('section-'+t).classList.toggle('active', t===tab);
   });
 }
