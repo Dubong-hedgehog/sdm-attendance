@@ -212,9 +212,11 @@ textarea:focus { border-color: #1D9E75; background: #f9fffe; }
   <div class="card" style="max-width:340px; margin:0; padding:24px; max-height:85vh; overflow-y:auto;">
     <h2 style="margin-bottom:16px; font-size:18px;">게시글 작성</h2>
     <label>제목</label>
-    <input type="text" id="board-write-title" placeholder="제목을 입력해주세요">
+    <input type="text" id="board-write-title" placeholder="예: OO 소셜링 열고 싶어요">
     <label>내용</label>
     <textarea id="board-write-content" placeholder="내용을 입력해주세요"></textarea>
+    <label>최대인원 (호스트 포함)</label>
+    <input type="text" id="board-write-maxpeople" placeholder="예: 4" inputmode="numeric">
     <label>이름</label>
     <input type="text" id="board-write-name" placeholder="홍길동">
     <label>전화번호 뒷 4자리</label>
@@ -787,7 +789,7 @@ function renderBoardList() {
           ${p.title}
           <span class="status-badge ${statusBadgeClass(p.status)}">${p.status}</span>
         </div>
-        <div style="font-size:12px; color:#888; margin-top:2px;">${p.author} · ${String(p.createdAt).substring(0,16)}</div>
+        <div style="font-size:12px; color:#888; margin-top:2px;">${p.author} · 최대 ${p.maxPeople}명(호스트 포함) · ${String(p.createdAt).substring(0,16)}</div>
       </div>
       <div id="board-detail-${p.id}" style="display:none; margin-top:10px; border-top:1px solid #f0f0f0; padding-top:10px;">
         <p style="font-size:14px; color:#333; white-space:pre-wrap;">${p.content}</p>
@@ -806,6 +808,8 @@ function renderBoardList() {
           <input type="text" id="board-edit-title-${p.id}" value="${p.title}">
           <label>내용</label>
           <textarea id="board-edit-content-${p.id}">${p.content}</textarea>
+          <label>최대인원 (호스트 포함)</label>
+          <input type="text" id="board-edit-maxpeople-${p.id}" value="${p.maxPeople}" inputmode="numeric">
           <label>비밀번호</label>
           <input type="text" id="board-edit-password-${p.id}" placeholder="비밀번호">
           <button class="btn" style="margin-top:10px;" onclick="saveBoardEdit('${p.id}')">저장</button>
@@ -831,11 +835,12 @@ function toggleBoardEdit(id) {
 async function saveBoardEdit(id) {
   const title = document.getElementById(`board-edit-title-${id}`).value.trim();
   const content = document.getElementById(`board-edit-content-${id}`).value.trim();
+  const maxPeople = document.getElementById(`board-edit-maxpeople-${id}`).value.trim();
   const password = document.getElementById(`board-edit-password-${id}`).value.trim();
-  if (!title || !content || !password) {
+  if (!title || !content || !maxPeople || !password) {
     showMsg(`board-edit-msg-${id}`, '모든 항목을 입력해주세요.', 'error'); return;
   }
-  const res = await api({ action: 'updateBoardPost', id, password, title, content });
+  const res = await api({ action: 'updateBoardPost', id, password, title, content, maxPeople });
   if (res.success) { await loadBoardPosts(); }
   else { showMsg(`board-edit-msg-${id}`, res.message, 'error'); }
 }
@@ -860,6 +865,7 @@ async function changeBoardStatusPrompt(id, status) {
 function openBoardWrite() {
   document.getElementById('board-write-title').value = '';
   document.getElementById('board-write-content').value = '';
+  document.getElementById('board-write-maxpeople').value = '';
   document.getElementById('board-write-name').value = '';
   document.getElementById('board-write-phone').value = '';
   document.getElementById('board-write-password').value = '';
@@ -874,13 +880,17 @@ function closeBoardWrite() {
 async function submitBoardPost() {
   const title = document.getElementById('board-write-title').value.trim();
   const content = document.getElementById('board-write-content').value.trim();
+  const maxPeople = document.getElementById('board-write-maxpeople').value.trim();
   const name = document.getElementById('board-write-name').value.trim();
   const phone4 = document.getElementById('board-write-phone').value.trim();
   const password = document.getElementById('board-write-password').value.trim();
-  if (!title || !content || !name || phone4.length !== 4 || !password) {
+  if (!title || !content || !maxPeople || !name || phone4.length !== 4 || !password) {
     showMsg('board-write-msg', '모든 항목을 정확히 입력해주세요.', 'error'); return;
   }
-  const res = await api({ action: 'createBoardPost', title, content, name, phone4, password });
+  if (!/^\d+$/.test(maxPeople)) {
+    showMsg('board-write-msg', '최대인원은 숫자로 입력해주세요.', 'error'); return;
+  }
+  const res = await api({ action: 'createBoardPost', title, content, maxPeople, name, phone4, password });
   if (res.success) { closeBoardWrite(); await loadBoardPosts(); }
   else { showMsg('board-write-msg', res.message, 'error'); }
 }
