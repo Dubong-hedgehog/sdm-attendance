@@ -789,7 +789,7 @@ function renderBoardList() {
           ${p.title}
           <span class="status-badge ${statusBadgeClass(p.status)}">${p.status}</span>
         </div>
-        <div style="font-size:12px; color:#888; margin-top:2px;">${p.author} · 최대 ${p.maxPeople}명(호스트 포함)${p.host ? ' · 호스트: ' + p.host : ''} · ${String(p.createdAt).substring(0,16)}</div>
+        <div style="font-size:12px; color:#888; margin-top:2px;">${p.author} · 최대 ${p.maxPeople}명(호스트 포함)${p.coHost ? ' · 공동호스트: ' + p.coHost : ''} · ${String(p.createdAt).substring(0,16)}</div>
       </div>
       <div id="board-detail-${p.id}" style="display:none; margin-top:10px; border-top:1px solid #f0f0f0; padding-top:10px;">
         <p style="font-size:14px; color:#333; white-space:pre-wrap;">${p.content}</p>
