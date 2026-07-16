@@ -226,11 +226,32 @@
     <div id="game-rank-list">
       <div class="empty-state">아직 진행 중인 미니게임이 없어요</div>
     </div>
+   <div id="game-entry-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:999; align-items:center; justify-content:center;">
+      <div class="card" style="max-width:320px; margin:0; padding:24px;">
+        <h2 style="margin-bottom:16px;" id="game-entry-title">게임 시작</h2>
+        <label>기수</label>
+        <input type="text" id="game-gen" placeholder="8" inputmode="numeric">
+        <label>이름</label>
+        <input type="text" id="game-name" placeholder="홍길동">
+        <button class="btn" onclick="confirmStartGame()">시작하기</button>
+        <button class="btn btn-outline-red" style="margin-top:8px;" onclick="closeGameEntry()">취소</button>
+        <div class="msg" id="game-entry-msg"></div>
+      </div>
+    </div>
+
+    <div id="game-play-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#222; z-index:1000; flex-direction:column; align-items:center; justify-content:center;">
+      <div style="color:#fff; font-size:14px; margin-bottom:8px;">
+        점수: <span id="game-score">0</span> &nbsp;|&nbsp; 연탄: <span id="game-lives">🔥🔥🔥</span>
+      </div>
+      <canvas id="game-canvas" width="320" height="480" style="background:#eef; border-radius:12px;"></canvas>
+      <button class="btn-sm btn-gray" style="margin-top:12px;" onclick="exitGame()">그만하기</button>
+    </div>
   </div>
 
 <script src="config.js"></script>
 <script>
 let allActivities = [];
+let gameRankingLoaded = false;
 
   async function api(body) {
     const res = await fetch(CONFIG.API_URL, {
@@ -403,6 +424,168 @@ function switchTab(tab) {
   TAB_ORDER.forEach(t => {
     document.getElementById('section-' + t).classList.toggle('active', t === tab);
   });
+  if (tab === 'game' && !gameRankingLoaded) { gameRankingLoaded = true; loadGameRanking(); }
+}
+
+let currentGameName = '';
+let tiltX = 0;
+let orientationHandler = null;
+
+function openGameEntry(gameName) {
+  currentGameName = gameName;
+  document.getElementById('game-entry-title').textContent = gameName + ' 시작';
+  document.getElementById('game-gen').value = CONFIG.GENERATION;
+  document.getElementById('game-name').value = '';
+  document.getElementById('game-entry-msg').textContent = '';
+  document.getElementById('game-entry-modal').style.display = 'flex';
+}
+
+function closeGameEntry() {
+  document.getElementById('game-entry-modal').style.display = 'none';
+}
+
+async function confirmStartGame() {
+  const gen = document.getElementById('game-gen').value.trim();
+  const name = document.getElementById('game-name').value.trim();
+  if (!gen || !name) { showMsg('game-entry-msg', '기수와 이름을 입력해주세요.', 'error'); return; }
+  const res = await api({ action: 'verifyGamePlayer', generation: gen, name });
+  if (!res.success) {
+    showMsg('game-entry-msg', res.message, 'error');
+    return;
+  }
+  closeGameEntry();
+  launchCoalGame(gen, name);
+}
+
+function launchCoalGame(generation, name) {
+  document.getElementById('game-play-overlay').style.display = 'flex';
+  const canvas = document.getElementById('game-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  let player = { x: W / 2, y: H - 60, w: 36, h: 36 };
+  let obstacles = [];
+  let score = 0;
+  let lives = 3;
+  let speed = 2.5;
+  let spawnTimer = 0;
+  let spawnInterval = 90;
+  let running = true;
+  let dragActive = false;
+  tiltX = 0;
+
+  function requestTiltPermission() {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission().then(state => {
+        if (state === 'granted') enableTilt();
+      }).catch(() => {});
+    } else {
+      enableTilt();
+    }
+  }
+  function enableTilt() {
+    orientationHandler = (e) => { if (e.gamma !== null) tiltX = Math.max(-30, Math.min(30, e.gamma)); };
+    window.addEventListener('deviceorientation', orientationHandler);
+  }
+  requestTiltPermission();
+
+  function onDragMove(clientX) {
+    const rect = canvas.getBoundingClientRect();
+    const relX = clientX - rect.left;
+    player.x = Math.max(player.w / 2, Math.min(W - player.w / 2, relX));
+  }
+  canvas.onmousedown = (e) => { dragActive = true; onDragMove(e.clientX); };
+  canvas.onmousemove = (e) => { if (dragActive) onDragMove(e.clientX); };
+  canvas.onmouseup = () => { dragActive = false; };
+  canvas.ontouchstart = (e) => { onDragMove(e.touches[0].clientX); };
+  canvas.ontouchmove = (e) => { e.preventDefault(); onDragMove(e.touches[0].clientX); };
+
+  function updateLives() { document.getElementById('game-lives').textContent = '🔥'.repeat(lives); }
+  updateLives();
+
+  function spawnObstacle() {
+    const w = 40 + Math.random() * 30;
+    obstacles.push({ x: Math.random() * (W - w), y: -30, w, h: 24 });
+  }
+
+  function loop() {
+    if (!running) return;
+    ctx.clearRect(0, 0, W, H);
+
+    if (Math.abs(tiltX) > 2) {
+      player.x += tiltX * 0.8;
+      player.x = Math.max(player.w / 2, Math.min(W - player.w / 2, player.x));
+    }
+
+    spawnTimer++;
+    if (spawnTimer >= spawnInterval) { spawnObstacle(); spawnTimer = 0; }
+
+    obstacles.forEach(o => { o.y += speed; });
+    obstacles = obstacles.filter(o => {
+      if (o.y > H) return false;
+      const hit = Math.abs((o.x + o.w / 2) - player.x) < (o.w / 2 + player.w / 2) &&
+                  Math.abs((o.y + o.h / 2) - player.y) < (o.h / 2 + player.h / 2);
+      if (hit) {
+        lives--;
+        updateLives();
+        if (lives <= 0) endGame();
+        return false;
+      }
+      return true;
+    });
+
+    ctx.fillStyle = '#556B2F';
+    obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h));
+
+    ctx.font = '32px sans-serif';
+    ctx.fillText('🚶', player.x - 16, player.y + 12);
+
+    score += 1;
+    document.getElementById('game-score').textContent = Math.floor(score / 10);
+
+    speed = 2.5 + Math.floor(score / 300) * 0.5;
+    spawnInterval = Math.max(30, 90 - Math.floor(score / 200) * 5);
+
+    if (running) requestAnimationFrame(loop);
+  }
+
+  async function endGame() {
+    running = false;
+    if (orientationHandler) window.removeEventListener('deviceorientation', orientationHandler);
+    const finalScore = Math.floor(score / 10);
+    await api({ action: 'saveGameScore', generation, name, game: '연탄봉사', score: finalScore });
+    alert('게임 종료! 점수: ' + finalScore);
+    document.getElementById('game-play-overlay').style.display = 'none';
+    loadGameRanking();
+  }
+
+  window._exitGameCleanup = () => {
+    running = false;
+    if (orientationHandler) window.removeEventListener('deviceorientation', orientationHandler);
+  };
+
+  requestAnimationFrame(loop);
+}
+
+function exitGame() {
+  if (window._exitGameCleanup) window._exitGameCleanup();
+  document.getElementById('game-play-overlay').style.display = 'none';
+}
+
+async function loadGameRanking() {
+  const res = await api({ action: 'getGameRanking', game: '연탄봉사' });
+  const list = document.getElementById('game-rank-list');
+  if (!res.success || res.ranking.length === 0) {
+    list.innerHTML = '<div class="empty-state">아직 진행 중인 미니게임이 없어요</div>';
+    return;
+  }
+  list.innerHTML = res.ranking.map((r, i) => `
+    <div class="status-card" style="display:flex; align-items:center; gap:10px;">
+      <div style="width:22px; text-align:center; font-size:14px; font-weight:700; color:#888;">${i + 1}</div>
+      <span style="flex:1; font-size:15px; font-weight:500;">${r.name}</span>
+      <span style="font-size:13px; color:#888;">${r.score}점</span>
+    </div>
+  `).join('');
 }
 
   function showMsg(id, msg, type) {
