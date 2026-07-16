@@ -434,7 +434,7 @@ let orientationHandler = null;
 function openGameEntry(gameName) {
   currentGameName = gameName;
   document.getElementById('game-entry-title').textContent = gameName + ' 시작';
-  document.getElementById('game-gen').value = CONFIG.GENERATION;
+  document.getElementById('game-gen').value = '';
   document.getElementById('game-name').value = '';
   document.getElementById('game-entry-msg').textContent = '';
   document.getElementById('game-entry-modal').style.display = 'flex';
