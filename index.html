@@ -639,8 +639,9 @@ function launchCoalGame(generation, name) {
     if (running) requestAnimationFrame(loop);
   }
 
-  function runCountdown(callback) {
+function runCountdown(callback) {
     const steps = ['3', '2', '1', 'GO'];
+    const stepDelay = [1000, 1000, 1000, 500];
     let i = 0;
     function showStep() {
       ctx.clearRect(0, 0, W, H);
@@ -651,12 +652,13 @@ function launchCoalGame(generation, name) {
       ctx.textAlign = 'center';
       ctx.fillText(steps[i], W / 2, H / 2 + 20);
       ctx.textAlign = 'left';
-      if (steps[i] === 'GO') playGoSound(); else playCountSound();
+      playCountClip(steps[i]);
+      const delay = stepDelay[i];
       i++;
       if (i < steps.length) {
-        setTimeout(showStep, 700);
+        setTimeout(showStep, delay);
       } else {
-        setTimeout(() => { ctx.clearRect(0, 0, W, H); callback(); }, 500);
+        setTimeout(() => { ctx.clearRect(0, 0, W, H); callback(); }, delay);
       }
     }
     showStep();
