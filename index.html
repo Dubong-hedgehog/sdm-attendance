@@ -200,6 +200,9 @@ textarea:focus { border-color: #1D9E75; background: #f9fffe; }
 <div class="section" id="section-board">
   <div style="display:flex; justify-content:space-between; align-items:center;">
     <h2 style="font-size:16px; font-weight:700;">게시판</h2>
+   <div class="notice-box" style="display:block; margin-top:10px;">
+  📌 최소 3명 이상 모여야 진행돼요 · 대원이 개최할 땐 운영진 호스트가 필요해요(운영진 자원) · 운영진은 자유롭게 개최 가능해요
+   </div>
     <button class="btn btn-outline-red" style="width:auto; margin:0; padding:8px 14px; color:#1D9E75; border-color:#1D9E75;" onclick="openBoardWrite()">글쓰기</button>
   </div>
   <div id="board-list" style="margin-top:14px;"></div>
@@ -208,13 +211,6 @@ textarea:focus { border-color: #1D9E75; background: #f9fffe; }
 <div id="board-write-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:999; align-items:center; justify-content:center;">
   <div class="card" style="max-width:340px; margin:0; padding:24px; max-height:85vh; overflow-y:auto;">
     <h2 style="margin-bottom:16px; font-size:18px;">게시글 작성</h2>
-    <label>종류</label>
-    <div class="select-wrap">
-      <select id="board-write-type">
-        <option value="소셜링 제안">소셜링 제안</option>
-        <option value="호스트공고">호스트공고</option>
-      </select>
-    </div>
     <label>제목</label>
     <input type="text" id="board-write-title" placeholder="제목을 입력해주세요">
     <label>내용</label>
@@ -788,7 +784,7 @@ function renderBoardList() {
     <div class="status-card">
       <div style="cursor:pointer;" onclick="toggleBoardDetail('${p.id}')">
         <div class="status-card-title">
-          <span class="status-badge badge-gray">${p.type}</span> ${p.title}
+          ${p.title}
           <span class="status-badge ${statusBadgeClass(p.status)}">${p.status}</span>
         </div>
         <div style="font-size:12px; color:#888; margin-top:2px;">${p.author} · ${String(p.createdAt).substring(0,16)}</div>
@@ -862,7 +858,6 @@ async function changeBoardStatusPrompt(id, status) {
 }
 
 function openBoardWrite() {
-  document.getElementById('board-write-type').value = '소셜링 제안';
   document.getElementById('board-write-title').value = '';
   document.getElementById('board-write-content').value = '';
   document.getElementById('board-write-name').value = '';
@@ -877,7 +872,6 @@ function closeBoardWrite() {
 }
 
 async function submitBoardPost() {
-  const type = document.getElementById('board-write-type').value;
   const title = document.getElementById('board-write-title').value.trim();
   const content = document.getElementById('board-write-content').value.trim();
   const name = document.getElementById('board-write-name').value.trim();
@@ -886,7 +880,7 @@ async function submitBoardPost() {
   if (!title || !content || !name || phone4.length !== 4 || !password) {
     showMsg('board-write-msg', '모든 항목을 정확히 입력해주세요.', 'error'); return;
   }
-  const res = await api({ action: 'createBoardPost', type, title, content, name, phone4, password });
+  const res = await api({ action: 'createBoardPost', title, content, name, phone4, password });
   if (res.success) { closeBoardWrite(); await loadBoardPosts(); }
   else { showMsg('board-write-msg', res.message, 'error'); }
 }
