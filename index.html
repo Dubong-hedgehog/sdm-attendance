@@ -293,7 +293,7 @@ textarea:focus { border-color: #1D9E75; background: #f9fffe; }
 let allActivities = [];
 let gameRankingLoaded = false;
 let boardLoaded = false;
-
+let CURRENT_GEN = null;
   async function api(body) {
     const res = await fetch(CONFIG.API_URL, {
       method: 'POST',
@@ -304,7 +304,7 @@ let boardLoaded = false;
 
 async function loadActivities() {
     try {
-      const data = await api({ action: 'getActivities', generation: CONFIG.GENERATION });
+      const data = await api({ action: 'getActivities', generation: CURRENT_GEN });
       if (data.success) {
         allActivities = data.activities.filter(a =>
           String(a['활성화']).toUpperCase() === 'TRUE'
@@ -767,7 +767,7 @@ async function loadGameRanking() {
 async function loadBoardPosts() {
   const list = document.getElementById('board-list');
   list.innerHTML = '<div class="empty-state">불러오는 중...</div>';
-  const res = await api({ action: 'getBoardPosts', generation: CONFIG.GENERATION });
+  const res = await api({ action: 'getBoardPosts', generation: CURRENT_GEN });
   if (!res.success) { list.innerHTML = '<div class="empty-state">불러오기 실패</div>'; return; }
   boardPosts = res.posts;
   renderBoardList();
@@ -890,7 +890,7 @@ async function submitBoardPost() {
   if (!/^\d+$/.test(maxPeople)) {
     showMsg('board-write-msg', '최대인원은 숫자로 입력해주세요.', 'error'); return;
   }
-  const res = await api({ action: 'createBoardPost', generation: CONFIG.GENERATION, title, content, maxPeople, name, phone4, password });
+  const res = await api({ action: 'createBoardPost', generation: CURRENT_GEN, title, content, maxPeople, name, phone4, password });
   if (res.success) { closeBoardWrite(); await loadBoardPosts(); }
   else { showMsg('board-write-msg', res.message, 'error'); }
 }
@@ -955,7 +955,7 @@ async function submitAttend() {
   const btn = document.querySelector('#section-attend .btn');
   btn.disabled = true; btn.textContent = '확인 중...';
   try {
-    const check = await api({ action: 'checkAttendance', name, phone4, activityId, generation: CONFIG.GENERATION });
+    const check = await api({ action: 'checkAttendance', name, phone4, activityId, generation: CURRENT_GEN });
     if (!check.success) {
       showMsg('attend-msg', check.message, 'error');
       btn.disabled = false; btn.textContent = '출석 완료';
@@ -963,7 +963,7 @@ async function submitAttend() {
     }
     const submit = await api({
       action: 'submitAttendance', name, phone4, activityId,
-      subActivity: checkedItems, generation: CONFIG.GENERATION, isDaily: false
+      subActivity: checkedItems, generation: CURRENT_GEN, isDaily: false
     });
     if (submit.success) {
       document.getElementById('attend-form').style.display = 'none';
@@ -996,7 +996,7 @@ async function submitPre() {
   try {
     const checkedPreSubItems = [...document.querySelectorAll('#pre-sub-list input:checked')]
       .map(el => el.value).join(',');
-    const res = await api({ action: 'preRegister', name, phone4, activityId, subItems: checkedPreSubItems, generation: CONFIG.GENERATION });
+    const res = await api({ action: 'preRegister', name, phone4, activityId, subItems: checkedPreSubItems, generation: CURRENT_GEN });
     if (res.success) {
       document.getElementById('pre-form').style.display = 'none';
       document.getElementById('pre-success').classList.add('show');
@@ -1122,7 +1122,27 @@ function resetMyPage() {
   msg.className = 'msg'; msg.textContent = '';
 }
 
+function resetMyPage() {
+  document.getElementById('my-form').style.display = 'block';
+  document.getElementById('my-status').style.display = 'none';
+  document.getElementById('my-name').value = '';
+  document.getElementById('my-phone').value = '';
+  document.getElementById('my-gen-list').innerHTML = '';
+  myStatusData = null;
+  const btn = document.querySelector('#section-my .btn');
+  btn.disabled = false; btn.textContent = '조회하기';
+  const msg = document.getElementById('my-msg');
+  msg.className = 'msg'; msg.textContent = '';
+}
+async function initGeneration() {
+  const res = await api({ action: 'getCurrentGeneration' });
+  CURRENT_GEN = res.success ? res.generation : '';
+}
+async function initApp() {
+  await initGeneration();
   loadActivities();
+}
+initApp();
 </script>
 </body>
 </html>
