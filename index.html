@@ -238,8 +238,8 @@
       <div class="list-item" style="text-align:center;">
         <div class="game-icon" style="font-size:28px;">🏖️</div>
         <div style="font-size:14px; font-weight:500; margin-top:6px;">플로깅 팡</div>
-        <div style="font-size:12px; color:#888; margin-top:2px;">쓰레기만 빠르게 터치해요</div>
-        <button class="btn-sm btn-gray" style="width:100%; margin-top:10px;" disabled>준비중</button>
+        <div style="font-size:12px; color:#888; margin-top:2px;">쓰레기를 빠르게 터치해요</div>
+        <button class="btn-sm btn-green" style="width:100%; margin-top:10px;" onclick="openGameEntry('플로깅 팡')">플레이</button>
       </div>
       <div class="list-item" style="text-align:center;">
         <div class="game-icon" style="font-size:28px;">🌀</div>
@@ -261,8 +261,12 @@
       </div>
     </div>
     <hr class="divider">
-    <h2>게임 랭킹</h2>
+    <h2>연탄나르기 랭킹</h2>
     <div id="game-rank-list">
+      <div class="empty-state">아직 진행 중인 미니게임이 없어요</div>
+    </div>
+    <h2 style="margin-top:16px;">플로깅 팡 랭킹</h2>
+    <div id="game-rank-list-flogging">
       <div class="empty-state">아직 진행 중인 미니게임이 없어요</div>
     </div>
    <div id="game-entry-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:999; align-items:center; justify-content:center;">
@@ -283,7 +287,7 @@
         최고점수: <span id="game-best-score">0</span>
       </div>
       <div style="color:#fff; font-size:14px; margin-bottom:8px;">
-        점수: <span id="game-score">0</span> &nbsp;|&nbsp; 연탄: <span id="game-lives">🔥🔥🔥</span>
+        점수: <span id="game-score">0</span> &nbsp;|&nbsp; <span id="game-lives-label">연탄</span>: <span id="game-lives">🔥🔥🔥</span>
       </div>
       <canvas id="game-canvas" width="320" height="480" style="background:#eef; border-radius:12px;"></canvas>
       <button class="btn-sm btn-gray" style="margin-top:12px;" onclick="exitGame()">그만하기</button>
@@ -468,7 +472,7 @@ function switchTab(tab) {
     document.getElementById('section-' + t).classList.toggle('active', t === tab);
   });
   if (tab === 'board' && !boardLoaded) { boardLoaded = true; loadBoardPosts(); }
-  if (tab === 'game' && !gameRankingLoaded) { gameRankingLoaded = true; loadGameRanking(); }
+  if (tab === 'game' && !gameRankingLoaded) { gameRankingLoaded = true; loadGameRanking(); loadFloggingRanking(); }
 }
 
 let currentGameName = '';
@@ -498,11 +502,16 @@ async function confirmStartGame() {
     return;
   }
   closeGameEntry();
-  launchCoalGame(gen, name);
+  if (currentGameName === '플로깅 팡') {
+    launchFloggingGame(gen, name);
+  } else {
+    launchCoalGame(gen, name);
+  }
 }
 
 function launchCoalGame(generation, name) {
   document.getElementById('game-play-overlay').style.display = 'flex';
+  document.getElementById('game-lives-label').textContent = '연탄';
    api({ action: 'getGameRanking', game: '연탄나르기' }).then(res => {
     const best = (res.success && res.ranking && res.ranking.length > 0) ? res.ranking[0].score : 0;
     document.getElementById('game-best-score').textContent = best;
@@ -736,6 +745,167 @@ async function endGame() {
   });
 }
 
+function launchFloggingGame(generation, name) {
+  document.getElementById('game-play-overlay').style.display = 'flex';
+  document.getElementById('game-lives-label').textContent = '목숨';
+  api({ action: 'getGameRanking', game: '플로깅 팡' }).then(res => {
+    const best = (res.success && res.ranking && res.ranking.length > 0) ? res.ranking[0].score : 0;
+    document.getElementById('game-best-score').textContent = best;
+  });
+  const canvas = document.getElementById('game-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const TRASH_ICONS = ['🍾', '🥫', '🛍️'];
+  const SEA_ICONS = ['🐟', '🦀', '🐢'];
+  const ITEM_R = 26;
+  let items = [];
+  let score = 0;
+  let lives = 3;
+  let running = true;
+  let lastSpawnAt = 0;
+
+  function updateLives() { document.getElementById('game-lives').textContent = '❤️'.repeat(Math.max(lives, 0)); }
+  updateLives();
+
+  function getMaxSimultaneous() {
+    if (score >= 300) return 3;
+    if (score >= 120) return 2;
+    return 1;
+  }
+  function getItemDuration() {
+    return Math.max(500, 1100 - Math.floor(score / 20) * 15);
+  }
+  function getSpawnGap() {
+    return Math.max(150, 320 - Math.floor(score / 20) * 5);
+  }
+
+  function spawnItem() {
+    const isTrash = Math.random() < 0.6;
+    const emoji = isTrash
+      ? TRASH_ICONS[Math.floor(Math.random() * TRASH_ICONS.length)]
+      : SEA_ICONS[Math.floor(Math.random() * SEA_ICONS.length)];
+    const x = ITEM_R + Math.random() * (W - ITEM_R * 2);
+    const y = ITEM_R + Math.random() * (H - ITEM_R * 2);
+    items.push({ x, y, emoji, type: isTrash ? 'trash' : 'sea', bornAt: performance.now(), duration: getItemDuration() });
+  }
+
+  function handleMiss(item) {
+    if (item.type === 'trash') {
+      lives--;
+      updateLives();
+      playHitSound();
+      if (lives <= 0) endGame();
+    }
+  }
+
+  function onTap(clientX, clientY) {
+    if (!running) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      const dx = x - it.x, dy = y - it.y;
+      if (Math.sqrt(dx * dx + dy * dy) <= ITEM_R) {
+        items.splice(i, 1);
+        if (it.type === 'trash') {
+          score += 10;
+          document.getElementById('game-score').textContent = score;
+          playItemSound();
+        } else {
+          lives--;
+          updateLives();
+          playHitSound();
+          if (lives <= 0) endGame();
+        }
+        return;
+      }
+    }
+  }
+  canvas.onmousedown = (e) => onTap(e.clientX, e.clientY);
+  canvas.ontouchstart = (e) => { e.preventDefault(); onTap(e.touches[0].clientX, e.touches[0].clientY); };
+
+  function loop(now) {
+    if (!running) return;
+    ctx.clearRect(0, 0, W, H);
+    items = items.filter(it => {
+      const age = now - it.bornAt;
+      if (age > it.duration) {
+        handleMiss(it);
+        return false;
+      }
+      return true;
+    });
+    if (items.length < getMaxSimultaneous() && now - lastSpawnAt > getSpawnGap()) {
+      spawnItem();
+      lastSpawnAt = now;
+    }
+    items.forEach(it => {
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.arc(it.x, it.y, ITEM_R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = '28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(it.emoji, it.x, it.y + 2);
+    });
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    if (running) requestAnimationFrame(loop);
+  }
+
+  function runCountdown(callback) {
+    const steps = ['3', '2', '1', 'GO'];
+    const stepDelay = [1000, 1000, 1000, 500];
+    let i = 0;
+    function showStep() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#eef';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#1D9E75';
+      ctx.font = 'bold 64px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(steps[i], W / 2, H / 2 + 20);
+      ctx.textAlign = 'left';
+      playCountClip(steps[i]);
+      const delay = stepDelay[i];
+      i++;
+      if (i < steps.length) {
+        setTimeout(showStep, delay);
+      } else {
+        setTimeout(() => { ctx.clearRect(0, 0, W, H); callback(); }, delay);
+      }
+    }
+    showStep();
+  }
+
+  async function endGame() {
+    running = false;
+    bgmAudio.pause();
+    playGameOverSound();
+    canvas.onmousedown = null;
+    canvas.ontouchstart = null;
+    await api({ action: 'saveGameScore', generation, name, game: '플로깅 팡', score });
+    alert('게임 종료! 점수: ' + score);
+    document.getElementById('game-play-overlay').style.display = 'none';
+    loadFloggingRanking();
+  }
+
+  window._exitGameCleanup = () => {
+    running = false;
+    canvas.onmousedown = null;
+    canvas.ontouchstart = null;
+  };
+
+  runCountdown(() => {
+    bgmAudio.currentTime = 0;
+    bgmAudio.play();
+    lastSpawnAt = performance.now();
+    requestAnimationFrame(loop);
+  });
+}
+
 function exitGame() {
   bgmAudio.pause();
   if (window._exitGameCleanup) window._exitGameCleanup();
@@ -758,6 +928,22 @@ async function loadGameRanking() {
   `).join('');
 }
 
+async function loadFloggingRanking() {
+  const res = await api({ action: 'getGameRanking', game: '플로깅 팡' });
+  const list = document.getElementById('game-rank-list-flogging');
+  if (!res.success || res.ranking.length === 0) {
+    list.innerHTML = '<div class="empty-state">아직 진행 중인 미니게임이 없어요</div>';
+    return;
+  }
+  list.innerHTML = res.ranking.map((r, i) => `
+    <div class="status-card" style="display:flex; align-items:center; gap:10px;">
+      <div style="width:22px; text-align:center; font-size:14px; font-weight:700; color:#888;">${i + 1}</div>
+      <span style="flex:1; font-size:15px; font-weight:500;">${r.name}</span>
+      <span style="font-size:13px; color:#888;">${r.score}점</span>
+    </div>
+  `).join('');
+}
+ 
   function showMsg(id, msg, type) {
     const el = document.getElementById(id);
     el.textContent = msg;
