@@ -338,11 +338,9 @@ async function loadDashboard() {
     attendance.forEach(r => {
       if (actMap[r['활동ID']]) actMap[r['활동ID']].count++;
     });
-
     const lbRes = await api({ action: 'getLeaderboard', generation: currentGen });
     const ranking = lbRes.success ? lbRes.ranking : [];
     const crownCount = ranking.filter(r => r.tier === 'crown').length;
-
     let html = `
       <div class="stat-grid">
         <div class="stat-card">
@@ -375,7 +373,6 @@ async function loadDashboard() {
           <div class="list-item-sub">출석 ${act.count}명 / 전체 ${totalMembers}명</div>
           <div class="btn-row">
             <button class="btn-sm btn-blue" onclick="toggleAttendanceDetail('${activityId}')">출석명단</button>
-            <button class="btn-sm btn-gray" onclick="downloadAttendanceExcel('${activityId}', '${act.name}')">엑셀 다운로드</button>
             ${act.is1365 ? `<button class="btn-sm btn-green" onclick="download1365('${activityId}', '${act.name}')">1365 내보내기</button>` : ''}
           </div>
           <div id="att-detail-${activityId}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;"></div>
