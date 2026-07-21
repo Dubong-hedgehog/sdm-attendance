@@ -763,6 +763,7 @@ function launchFloggingGame(generation, name) {
   let lives = 3;
   let running = true;
   let lastSpawnAt = 0;
+  let tickTimer = null;
 
   function updateLives() { document.getElementById('game-lives').textContent = '❤️'.repeat(Math.max(lives, 0)); }
   updateLives();
@@ -807,6 +808,24 @@ function launchFloggingGame(generation, name) {
     }
   }
 
+  // 아이템 소멸/생성 판정: rAF가 저전력모드로 뜸해져도 정확한 주기로 돌게 setInterval로 분리
+  function tick() {
+    if (!running) return;
+    const now = performance.now();
+    items = items.filter(it => {
+      const age = now - it.bornAt;
+      if (age > it.duration) {
+        handleMiss(it);
+        return false;
+      }
+      return true;
+    });
+    if (items.length < getMaxSimultaneous() && now - lastSpawnAt > getSpawnGap()) {
+      spawnItem();
+      lastSpawnAt = now;
+    }
+  }
+
   function onTap(clientX, clientY) {
     if (!running) return;
     const rect = canvas.getBoundingClientRect();
@@ -838,21 +857,10 @@ function launchFloggingGame(generation, name) {
   canvas.onmousedown = (e) => onTap(e.clientX, e.clientY);
   canvas.ontouchstart = (e) => { e.preventDefault(); onTap(e.touches[0].clientX, e.touches[0].clientY); };
 
-  function loop(now) {
+  // 화면 그리기만 담당 (rAF)
+  function loop() {
     if (!running) return;
     ctx.clearRect(0, 0, W, H);
-    items = items.filter(it => {
-      const age = now - it.bornAt;
-      if (age > it.duration) {
-        handleMiss(it);
-        return false;
-      }
-      return true;
-    });
-    if (items.length < getMaxSimultaneous() && now - lastSpawnAt > getSpawnGap()) {
-      spawnItem();
-      lastSpawnAt = now;
-    }
     items.forEach(it => {
       ctx.beginPath();
       ctx.fillStyle = it.type === 'bonus' ? 'rgba(255,230,150,0.9)' : 'rgba(255,255,255,0.85)';
@@ -895,6 +903,7 @@ function launchFloggingGame(generation, name) {
 
   async function endGame() {
     running = false;
+    if (tickTimer) clearInterval(tickTimer);
     bgmAudio.pause();
     playGameOverSound();
     canvas.onmousedown = null;
@@ -907,6 +916,7 @@ function launchFloggingGame(generation, name) {
 
   window._exitGameCleanup = () => {
     running = false;
+    if (tickTimer) clearInterval(tickTimer);
     canvas.onmousedown = null;
     canvas.ontouchstart = null;
   };
@@ -915,6 +925,7 @@ function launchFloggingGame(generation, name) {
     bgmAudio.currentTime = 0;
     bgmAudio.play();
     lastSpawnAt = performance.now();
+    tickTimer = setInterval(tick, 50);
     requestAnimationFrame(loop);
   });
 }
