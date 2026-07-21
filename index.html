@@ -755,9 +755,9 @@ function launchFloggingGame(generation, name) {
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
-  const TRASH_ICONS = ['🍾', '🥫', '🛍️'];
+  const TRASH_ICONS = ['🍾', '🥫', '🛍️', '🥤', '🧴'];
   const SEA_ICONS = ['🐟', '🦀', '🐢'];
-  const ITEM_R = 26;
+  const ITEM_R = 39;
   let items = [];
   let score = 0;
   let lives = 3;
@@ -772,6 +772,11 @@ function launchFloggingGame(generation, name) {
     if (score >= 120) return 2;
     return 1;
   }
+  function getTrashProbability() {
+    if (score >= 300) return 0.85;
+    if (score >= 120) return 0.90;
+    return 0.95;
+  }
   function getItemDuration() {
     return Math.max(500, 1100 - Math.floor(score / 20) * 15);
   }
@@ -780,12 +785,16 @@ function launchFloggingGame(generation, name) {
   }
 
   function spawnItem() {
-    const isTrash = Math.random() < 0.6;
+    const x = ITEM_R + Math.random() * (W - ITEM_R * 2);
+    const y = ITEM_R + Math.random() * (H - ITEM_R * 2);
+    if (Math.random() < 0.01) {
+      items.push({ x, y, emoji: '🦔', type: 'bonus', bornAt: performance.now(), duration: getItemDuration() });
+      return;
+    }
+    const isTrash = Math.random() < getTrashProbability();
     const emoji = isTrash
       ? TRASH_ICONS[Math.floor(Math.random() * TRASH_ICONS.length)]
       : SEA_ICONS[Math.floor(Math.random() * SEA_ICONS.length)];
-    const x = ITEM_R + Math.random() * (W - ITEM_R * 2);
-    const y = ITEM_R + Math.random() * (H - ITEM_R * 2);
     items.push({ x, y, emoji, type: isTrash ? 'trash' : 'sea', bornAt: performance.now(), duration: getItemDuration() });
   }
 
@@ -810,6 +819,10 @@ function launchFloggingGame(generation, name) {
         items.splice(i, 1);
         if (it.type === 'trash') {
           score += 10;
+          document.getElementById('game-score').textContent = score;
+          playItemSound();
+        } else if (it.type === 'bonus') {
+          score += 50;
           document.getElementById('game-score').textContent = score;
           playItemSound();
         } else {
@@ -842,10 +855,10 @@ function launchFloggingGame(generation, name) {
     }
     items.forEach(it => {
       ctx.beginPath();
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillStyle = it.type === 'bonus' ? 'rgba(255,230,150,0.9)' : 'rgba(255,255,255,0.85)';
       ctx.arc(it.x, it.y, ITEM_R, 0, Math.PI * 2);
       ctx.fill();
-      ctx.font = '28px sans-serif';
+      ctx.font = '42px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(it.emoji, it.x, it.y + 2);
