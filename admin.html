@@ -6,37 +6,43 @@
 <title>SDM 운영진 관리보드</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; min-height: 100vh; padding: 20px; }
-  .container { max-width: 600px; margin: 0 auto; }
-  .card { background: #fff; border-radius: 16px; padding: 24px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(160deg, #eef5f1 0%, #faf9f6 55%, #f5f1ea 100%); min-height: 100vh; padding: 20px; }
+  .container { max-width: 600px; margin: 0 auto; padding-bottom: 100px; }
+  .card { background: #fff; border-radius: 22px; padding: 24px; margin-bottom: 16px; box-shadow: 0 16px 40px rgba(15,80,60,0.10); border: 1px solid rgba(0,0,0,0.03); }
+  .admin-hero { background: linear-gradient(135deg, #1D9E75 0%, #0a7a56 100%); padding: 18px 22px; position: relative; overflow: hidden; box-shadow: 0 16px 34px rgba(15,110,86,0.22); }
+  .admin-hero::after { content:''; position:absolute; width:150px; height:150px; border-radius:50%; right:-55px; top:-65px; background:rgba(255,255,255,0.10); }
+  .admin-hero h1 { color: #fff; }
+  .logout-btn { font-size:11px; font-weight:700; color:#fff; background:rgba(255,255,255,0.18); border:none; padding:6px 12px; border-radius:999px; cursor:pointer; position:relative; z-index:1; }
   h1 { font-size: 20px; font-weight: 600; color: #1D9E75; text-align: center; margin-bottom: 4px; }
   h2 { font-size: 16px; font-weight: 500; color: #333; margin-bottom: 16px; }
   h3 { font-size: 14px; font-weight: 500; color: #555; margin-bottom: 10px; }
   label { font-size: 13px; color: #666; display: block; margin-bottom: 6px; margin-top: 14px; }
-  input[type=text], input[type=number], select, textarea { width: 100%; padding: 10px 14px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 14px; outline: none; background: #fff; }
-  input:focus, select:focus, textarea:focus { border-color: #1D9E75; }
+  input[type=text], input[type=number], select, textarea { width: 100%; padding: 10px 14px; border: 1px solid #e0e0e0; border-radius: 12px; font-size: 14px; outline: none; background: #fbfcfb; }
+  input:focus, select:focus, textarea:focus { border-color: #1D9E75; background:#f9fffe; }
   textarea { resize: vertical; min-height: 60px; }
-  .btn { width: 100%; padding: 12px; background: #1D9E75; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 500; margin-top: 14px; cursor: pointer; }
-  .btn:disabled { background: #ccc; cursor: not-allowed; }
-  .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; width: auto; margin-top: 0; }
+  .btn { width: 100%; padding: 12px; background: #1D9E75; color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 500; margin-top: 14px; cursor: pointer; box-shadow: 0 10px 22px rgba(15,110,86,0.22); }
+  .btn:disabled { background: #ccc; cursor: not-allowed; box-shadow:none; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 9px; border: none; cursor: pointer; font-weight: 500; width: auto; margin-top: 0; }
   .btn-green { background: #1D9E75; color: #fff; }
   .btn-red { background: #E24B4A; color: #fff; }
   .btn-blue { background: #378ADD; color: #fff; }
   .btn-gray { background: #888; color: #fff; }
   .btn-outline { background: #fff; color: #1D9E75; border: 1px solid #1D9E75; }
-  .tabs { display: flex; border-bottom: 1px solid #eee; margin-bottom: 20px; overflow-x: auto; }
-  .tab { flex: 1; padding: 10px 6px; text-align: center; font-size: 13px; color: #888; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; min-width: 70px; }
-  .tab.active { color: #1D9E75; border-bottom-color: #1D9E75; font-weight: 500; }
+  .tabs { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 600px; display: grid; grid-template-columns: repeat(5, 1fr); background: #fff; border-top: 1px solid #eee; border-radius: 22px 22px 0 0; padding: 8px 4px calc(8px + env(safe-area-inset-bottom)); box-shadow: 0 -10px 24px rgba(0,0,0,0.08); z-index: 50; }
+  .tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px 2px; text-align: center; color: #aaa; cursor: pointer; white-space: nowrap; min-width: 0; }
+  .tab-icon { font-size: 17px; line-height: 1; }
+  .tab-label { font-size: 9px; font-weight: 600; }
+  .tab.active { color: #1D9E75; font-weight: 800; }
   .section { display: none; }
   .section.active { display: block; }
   .msg { text-align: center; padding: 10px; border-radius: 10px; font-size: 13px; margin-top: 10px; display: none; }
   .msg.success { background: #E1F5EE; color: #0F6E56; display: block; }
   .msg.error { background: #FCEBEB; color: #A32D2D; display: block; }
   .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
-  .stat-card { background: #f8f8f8; border-radius: 10px; padding: 12px; text-align: center; }
+  .stat-card { background: #F3FAF7; border: 1px solid #e2f0e9; border-radius: 14px; padding: 12px; text-align: center; }
   .stat-label { font-size: 11px; color: #888; margin-bottom: 4px; }
   .stat-val { font-size: 22px; font-weight: 600; color: #1D9E75; }
-  .list-item { border: 1px solid #eee; border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+  .list-item { border: 1px solid #eee; border-radius: 14px; padding: 12px; margin-bottom: 8px; box-shadow: 0 6px 16px rgba(20,60,45,0.05); }
   .list-item-title { font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px; }
   .list-item-sub { font-size: 12px; color: #888; margin-bottom: 8px; }
   .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -75,20 +81,20 @@
 </div>
 
 <div class="container" id="admin-section" style="display:none;">
-<div class="card" style="padding: 16px 24px;">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
+<div class="card admin-hero">
+    <div style="display:flex; justify-content:space-between; align-items:center; position:relative; z-index:1;">
       <h1 style="margin:0;" id="admin-header-title">SDM 운영진</h1>
-      <button onclick="doLogout()" style="font-size:12px; color:#888; background:none; border:none; cursor:pointer;">로그아웃</button>
+      <button onclick="doLogout()" class="logout-btn">로그아웃</button>
     </div>
   </div>
 
   <div class="card">
-    <div class="tabs">
-      <div class="tab active" onclick="switchTab('dashboard')">대시보드</div>
-      <div class="tab" onclick="switchTab('member')">대원관리</div>
-      <div class="tab" onclick="switchTab('activity')">활동관리</div>
-      <div class="tab" onclick="switchTab('payment')">납부관리</div>
-      <div class="tab" onclick="switchTab('board')">게시판</div>
+<div class="tabs">
+      <div class="tab active" onclick="switchTab('dashboard')"><span class="tab-icon">📊</span><span class="tab-label">대시보드</span></div>
+      <div class="tab" onclick="switchTab('member')"><span class="tab-icon">👥</span><span class="tab-label">대원관리</span></div>
+      <div class="tab" onclick="switchTab('activity')"><span class="tab-icon">📅</span><span class="tab-label">활동관리</span></div>
+      <div class="tab" onclick="switchTab('payment')"><span class="tab-icon">💳</span><span class="tab-label">납부관리</span></div>
+      <div class="tab" onclick="switchTab('board')"><span class="tab-icon">💬</span><span class="tab-label">게시판</span></div>
     </div>
 
     <!-- 대시보드 -->
