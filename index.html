@@ -1373,14 +1373,12 @@ function draw() {
           ctx.strokeRect(x + 2, y + 2, CELL_W - 4, CELL_H - 4);
         }
         if (cell) {
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
           if (cell.special) {
-            const badge = cell.special === 'bomb' ? '🌈' : (cell.special === 'row' ? '↔️' : '↕️');
-            ctx.font = Math.floor(CELL_W * 0.75) + 'px sans-serif';
-            ctx.fillText(badge, x + CELL_W / 2, y + CELL_H / 2);
+            drawSpecialIcon(x + CELL_W / 2, y + CELL_H / 2, Math.min(CELL_W, CELL_H) * 0.75, cell.special);
           } else {
             ctx.font = Math.floor(CELL_W * 0.6) + 'px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
             ctx.fillText(ANIMALS[cell.type], x + CELL_W / 2, y + CELL_H / 2);
           }
         }
@@ -1399,7 +1397,36 @@ function draw() {
     }
     if (running) requestAnimationFrame(draw);
   }
-
+ 
+function drawSpecialIcon(cx, cy, size, type) {
+    if (type === 'row' || type === 'col') {
+      ctx.strokeStyle = '#1D9E75';
+      ctx.lineWidth = size * 0.1;
+      ctx.lineCap = 'round';
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        if (type === 'row') {
+          ctx.moveTo(cx - size * 0.32, cy + i * size * 0.22);
+          ctx.lineTo(cx + size * 0.32, cy + i * size * 0.22);
+        } else {
+          ctx.moveTo(cx + i * size * 0.22, cy - size * 0.32);
+          ctx.lineTo(cx + i * size * 0.22, cy + size * 0.32);
+        }
+        ctx.stroke();
+      }
+    } else if (type === 'bomb') {
+      const colors = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#B388FF'];
+      for (let i = 0; i < colors.length; i++) {
+        ctx.fillStyle = colors[i];
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, size * 0.34, (i / colors.length) * Math.PI * 2, ((i + 1) / colors.length) * Math.PI * 2);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+ 
   function startTimer() {
     gameStartTime = performance.now();
     timerInterval = setInterval(() => {
