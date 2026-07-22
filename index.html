@@ -1530,6 +1530,22 @@ async function loadFloggingRanking() {
     </div>
   `).join('');
 }
+
+async function loadAnimalRanking() {
+  const res = await api({ action: 'getGameRanking', game: '동물퍼즐' });
+  const list = document.getElementById('game-rank-list-animal');
+  if (!res.success || res.ranking.length === 0) {
+    list.innerHTML = '<div class="empty-state">아직 진행 중인 미니게임이 없어요</div>';
+    return;
+  }
+  list.innerHTML = res.ranking.map((r, i) => `
+    <div class="status-card" style="display:flex; align-items:center; gap:10px;">
+      <div style="width:22px; text-align:center; font-size:14px; font-weight:700; color:#888;">${i + 1}</div>
+      <span style="flex:1; font-size:15px; font-weight:500;">${r.name}</span>
+      <span style="font-size:13px; color:#888;">${r.score}점</span>
+    </div>
+  `).join('');
+}
  
   function showMsg(id, msg, type) {
     const el = document.getElementById(id);
