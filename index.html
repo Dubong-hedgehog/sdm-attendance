@@ -1089,7 +1089,7 @@ function launchAnimalGame(generation, name) {
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
-  const ANIMALS = ['🐶', '🐱', '🐰', '🐻', '🐼', '🦊'];
+  const ANIMALS = ['🐶', '🐱', '🦔', '🐸', '🐷', '🐯', '🐔'];
   const GRID_COLS = 6, GRID_ROWS = 9;
   const CELL_W = W / GRID_COLS, CELL_H = H / GRID_ROWS;
   const GAME_DURATION = 60;
@@ -1177,7 +1177,7 @@ function boardHasAnyMatch() {
   }
   createInitialGrid();
 
-  function findMatches() {
+function findMatches(anchor) {
     const matched = new Set();
     const specialsToCreate = [];
     for (let r = 0; r < GRID_ROWS; r++) {
@@ -1189,8 +1189,9 @@ function boardHasAnyMatch() {
           if (len >= 3) {
             for (let k = runStart; k < c; k++) matched.add(r + ',' + k);
             if (len >= 4) {
-              const mid = runStart + Math.floor(len / 2);
-              specialsToCreate.push({ r, c: mid, type: grid[r][runStart].type, special: len >= 5 ? 'bomb' : 'row' });
+              let pos = { r, c: runStart + Math.floor(len / 2) };
+              if (anchor && anchor.r === r && anchor.c >= runStart && anchor.c < c) pos = { r, c: anchor.c };
+              specialsToCreate.push({ r: pos.r, c: pos.c, type: grid[r][runStart].type, special: len >= 5 ? 'bomb' : 'row' });
             }
           }
           runStart = c;
@@ -1206,8 +1207,9 @@ function boardHasAnyMatch() {
           if (len >= 3) {
             for (let k = runStart; k < r; k++) matched.add(k + ',' + c);
             if (len >= 4) {
-              const mid = runStart + Math.floor(len / 2);
-              specialsToCreate.push({ r: mid, c, type: grid[runStart][c].type, special: len >= 5 ? 'bomb' : 'col' });
+              let pos = { r: runStart + Math.floor(len / 2), c };
+              if (anchor && anchor.c === c && anchor.r >= runStart && anchor.r < r) pos = { r: anchor.r, c };
+              specialsToCreate.push({ r: pos.r, c: pos.c, type: grid[runStart][c].type, special: len >= 5 ? 'bomb' : 'col' });
             }
           }
           runStart = r;
@@ -1251,13 +1253,15 @@ function boardHasAnyMatch() {
     }
   }
 
-  async function resolveBoard(swapTriggered) {
+async function resolveBoard(seedCells, anchor) {
     let cellsToClear = new Set();
-    swapTriggered.forEach(({ r, c }) => cellsToClear.add(r + ',' + c));
+    (seedCells || []).forEach(({ r, c }) => cellsToClear.add(r + ',' + c));
     let comboLevel = 0;
+    let currentAnchor = anchor || null;
     let keepGoing = true;
     while (keepGoing) {
-      const { matched, specialsToCreate } = findMatches();
+      const { matched, specialsToCreate } = findMatches(currentAnchor);
+      currentAnchor = null;
       matched.forEach(k => cellsToClear.add(k));
       if (cellsToClear.size === 0) { keepGoing = false; break; }
       Array.from(cellsToClear).forEach(key => {
@@ -1280,8 +1284,9 @@ function boardHasAnyMatch() {
       await sleep(180);
       comboLevel++;
     }
-      if (running && !hasPossibleMove()) {
+    if (running && !hasPossibleMove()) {
       await announceShuffle();
+    }
   }
 
   async function trySwap(r1, c1, r2, c2) {
@@ -1297,10 +1302,19 @@ function boardHasAnyMatch() {
       inputLocked = false;
       return;
     }
-    await resolveBoard(swapTriggered);
+    await resolveBoard(swapTriggered, { r: r2, c: c2 });
     inputLocked = false;
   }
 
+   async function activateSpecialAt(r, c) {
+    if (inputLocked || !running) return;
+    const cell = grid[r][c];
+    if (!cell || !cell.special) return;
+    inputLocked = true;
+    await resolveBoard([{ r, c }], null);
+    inputLocked = false;
+  }
+ 
   function pointToCell(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     const x = clientX - rect.left;
@@ -1315,11 +1329,18 @@ function boardHasAnyMatch() {
     downX = x; downY = y;
     downCell = pointToCell(x, y);
   }
-  function handleUp(x, y) {
+function handleUp(x, y) {
     if (inputLocked || !running || !downCell) return;
     const dx = x - downX, dy = y - downY;
     const absDx = Math.abs(dx), absDy = Math.abs(dy);
-    if (Math.max(absDx, absDy) < 12) { downCell = null; return; }
+    if (Math.max(absDx, absDy) < 12) {
+      const tapped = downCell;
+      downCell = null;
+      if (grid[tapped.r][tapped.c] && grid[tapped.r][tapped.c].special) {
+        activateSpecialAt(tapped.r, tapped.c);
+      }
+      return;
+    }
     let tr = downCell.r, tc = downCell.c;
     if (absDx > absDy) { tc += dx > 0 ? 1 : -1; } else { tr += dy > 0 ? 1 : -1; }
     const start = downCell;
@@ -1333,13 +1354,13 @@ function boardHasAnyMatch() {
   canvas.ontouchstart = (e) => { e.preventDefault(); const t = e.touches[0]; handleDown(t.clientX, t.clientY); };
   canvas.ontouchend = (e) => { e.preventDefault(); const t = e.changedTouches[0]; handleUp(t.clientX, t.clientY); };
 
-  function draw() {
+function draw() {
     ctx.clearRect(0, 0, W, H);
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
         const cell = grid[r][c];
         const x = c * CELL_W, y = r * CELL_H;
-        ctx.fillStyle = '#f7faf8';
+        ctx.fillStyle = cell && cell.special ? '#fff3cd' : '#f7faf8';
         ctx.fillRect(x + 2, y + 2, CELL_W - 4, CELL_H - 4);
         if (downCell && downCell.r === r && downCell.c === c) {
           ctx.strokeStyle = '#1D9E75';
@@ -1347,14 +1368,15 @@ function boardHasAnyMatch() {
           ctx.strokeRect(x + 2, y + 2, CELL_W - 4, CELL_H - 4);
         }
         if (cell) {
-          ctx.font = Math.floor(CELL_W * 0.6) + 'px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(ANIMALS[cell.type], x + CELL_W / 2, y + CELL_H / 2);
           if (cell.special) {
-            ctx.font = '13px sans-serif';
             const badge = cell.special === 'bomb' ? '🌈' : (cell.special === 'row' ? '↔️' : '↕️');
-            ctx.fillText(badge, x + CELL_W - 12, y + 12);
+            ctx.font = Math.floor(CELL_W * 0.75) + 'px sans-serif';
+            ctx.fillText(badge, x + CELL_W / 2, y + CELL_H / 2);
+          } else {
+            ctx.font = Math.floor(CELL_W * 0.6) + 'px sans-serif';
+            ctx.fillText(ANIMALS[cell.type], x + CELL_W / 2, y + CELL_H / 2);
           }
         }
       }
