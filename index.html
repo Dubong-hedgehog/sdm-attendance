@@ -360,23 +360,28 @@ async function doMemberLogin() {
   }
   const btn = document.querySelector('#login-gate .btn');
   btn.disabled = true; btn.textContent = '확인 중...';
-  const res = await api({ action: 'memberLogin', name, phone4, code });
-  btn.disabled = false; btn.textContent = '로그인';
-  if (!res.success) {
-    if (res.needCode === 'set') {
-      document.getElementById('login-code-wrap').style.display = 'block';
-      document.getElementById('login-code-label').textContent = '처음 접속이시네요! 사용할 고유코드 설정 (3글자)';
-      codeInput.value = '';
-      codeInput.focus();
-    } else if (res.needCode === 'enter') {
-      document.getElementById('login-code-wrap').style.display = 'block';
-      document.getElementById('login-code-label').textContent = '고유코드';
-      codeInput.focus();
+  try {
+    const res = await api({ action: 'memberLogin', name, phone4, code });
+    btn.disabled = false; btn.textContent = '로그인';
+    if (!res.success) {
+      if (res.needCode === 'set') {
+        document.getElementById('login-code-wrap').style.display = 'block';
+        document.getElementById('login-code-label').textContent = '처음 접속이시네요! 사용할 고유코드 설정 (3글자)';
+        codeInput.value = '';
+        codeInput.focus();
+      } else if (res.needCode === 'enter') {
+        document.getElementById('login-code-wrap').style.display = 'block';
+        document.getElementById('login-code-label').textContent = '고유코드';
+        codeInput.focus();
+      }
+      showMsg('login-msg', res.message, 'error');
+      return;
     }
-    showMsg('login-msg', res.message, 'error');
-    return;
+    startSession({ name, phone4, generations: res.generations });
+  } catch (e) {
+    btn.disabled = false; btn.textContent = '로그인';
+    showMsg('login-msg', '네트워크 오류가 발생했습니다. 다시 시도해주세요.', 'error');
   }
-  startSession({ name, phone4, generations: res.generations });
 }
 function startSession(data) {
   SESSION = { name: data.name, phone4: data.phone4, generations: data.generations, lastActivity: Date.now() };
