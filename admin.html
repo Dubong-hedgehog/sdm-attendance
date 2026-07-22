@@ -65,21 +65,15 @@
 </style>
 </head>
 <body>
-<div class="container" id="login-section">
+<div class="container" id="denied-section" style="display:none;">
   <div class="login-wrap">
-    <div class="card">
-      <h1>SDM 운영진</h1>
-      <p style="text-align:center; font-size:13px; color:#888; margin-top:4px; margin-bottom:20px;">관리자 페이지</p>
-      <label>기수</label>
-      <input type="text" id="login-gen" placeholder="8">
-      <label>운영진 코드</label>
-      <input type="text" id="login-code" placeholder="코드 입력">
-      <button class="btn" onclick="doLogin()">로그인</button>
-      <div class="msg" id="login-msg"></div>
+    <div class="card" style="text-align:center;">
+      <h1>접근 불가</h1>
+      <p style="font-size:13px; color:#888; margin-top:10px;" id="denied-msg">대원페이지에서 먼저 로그인해주세요.</p>
+      <button class="btn" onclick="location.href='index.html'">대원페이지로 이동</button>
     </div>
   </div>
 </div>
-
 <div class="container" id="admin-section" style="display:none;">
 <div class="card admin-hero">
     <div style="display:flex; justify-content:space-between; align-items:center; position:relative; z-index:1;">
@@ -87,7 +81,6 @@
       <button onclick="doLogout()" class="logout-btn">로그아웃</button>
     </div>
   </div>
-
   <div class="card">
 <div class="tabs">
       <div class="tab active" onclick="switchTab('dashboard')"><span class="tab-icon">📊</span><span class="tab-label">대시보드</span></div>
@@ -96,14 +89,12 @@
       <div class="tab" onclick="switchTab('payment')"><span class="tab-icon">💳</span><span class="tab-label">납부관리</span></div>
       <div class="tab" onclick="switchTab('board')"><span class="tab-icon">💬</span><span class="tab-label">게시판</span></div>
     </div>
-
     <!-- 대시보드 -->
     <div class="section active" id="section-dashboard">
       <div id="dashboard-content">
         <div class="empty">불러오는 중...</div>
       </div>
     </div>
-
     <!-- 대원관리 -->
     <div class="section" id="section-member">
       <h2>대원 목록</h2>
@@ -125,7 +116,6 @@
       <button class="btn" onclick="addDailyMember()">일일대원 추가</button>
       <div class="msg" id="daily-msg"></div>
     </div>
-
 <!-- 활동관리 -->
     <div class="section" id="section-activity">
       <h2>활동 목록</h2>
@@ -165,7 +155,6 @@
       <button class="btn" onclick="addActivity()">활동 추가</button>
       <div class="msg" id="activity-msg"></div>
     </div>
-
 <!-- 납부관리 -->
     <div class="section" id="section-payment">
       <h2>사전신청 납부 현황</h2>
@@ -194,58 +183,66 @@
     </div>
   </div>
 </div>
-
 <script src="/config.js"></script>
 <script>
 let allActivities = [];
 let allMembers = [];
 let currentGen = '';
+let adminName = '';
 let memberAttendanceStats = {};
  
 async function api(body) {
   const res = await fetch(CONFIG.API_URL, { method: 'POST', body: JSON.stringify(body) });
   return res.json();
 }
-
 function showMsg(id, msg, type) {
   const el = document.getElementById(id);
   el.textContent = msg; el.className = 'msg ' + type;
   setTimeout(() => { el.className = 'msg'; }, 3000);
 }
-
-async function doLogin() {
-  const gen = document.getElementById('login-gen').value.trim();
-  const code = document.getElementById('login-code').value.trim();
-  if (!gen || !code) { showMsg('login-msg', '기수와 코드를 입력해주세요.', 'error'); return; }
-  const btn = document.querySelector('#login-section .btn');
-  btn.disabled = true; btn.textContent = '확인 중...';
-  const res = await api({ action: 'verifyAdmin', code, generation: gen });
-  if (res.success) {
-    currentGen = gen;
-    document.getElementById('admin-header-title').textContent = currentGen + '기 SDM 운영진';
-    document.getElementById('login-section').style.display = 'none';
-    document.getElementById('admin-section').style.display = 'block';
-    await loadAll();
-  } else {
-    showMsg('login-msg', res.message, 'error');
-    btn.disabled = false; btn.textContent = '로그인';
-  }
+function getQueryParam(key) {
+  return new URLSearchParams(location.search).get(key);
 }
-
-function doLogout() {
-  document.getElementById('login-section').style.display = 'block';
+function showDenied(msg) {
+  document.getElementById('denied-msg').textContent = msg;
+  document.getElementById('denied-section').style.display = 'block';
   document.getElementById('admin-section').style.display = 'none';
-  document.getElementById('login-code').value = '';
-  document.getElementById('admin-header-title').textContent = 'SDM 운영진';
 }
-
+async function initAdmin() {
+  const gen = getQueryParam('gen');
+  const saved = localStorage.getItem('sdm_session');
+  if (!gen || !saved) {
+    showDenied('대원페이지에서 먼저 로그인 후 접속해주세요.');
+    return;
+  }
+  let session;
+  try { session = JSON.parse(saved); } catch(e) { session = null; }
+  if (!session || !session.name || !session.phone4) {
+    showDenied('대원페이지에서 먼저 로그인 후 접속해주세요.');
+    return;
+  }
+  const res = await api({ action: 'verifyAdminAccess', name: session.name, phone4: session.phone4, generation: gen });
+  if (!res.success) {
+    showDenied(res.message || '운영진 권한이 없습니다.');
+    return;
+  }
+  currentGen = gen;
+  adminName = session.name;
+  document.getElementById('admin-header-title').textContent = currentGen + '기 SDM 운영진 (' + adminName + ')';
+  document.getElementById('denied-section').style.display = 'none';
+  document.getElementById('admin-section').style.display = 'block';
+  await loadAll();
+}
+function doLogout() {
+  localStorage.removeItem('sdm_session');
+  location.href = 'index.html';
+}
 async function loadAll() {
   await loadActivities();
   await loadMembers();
   loadDashboard();
   loadAdminBoardList();
 }
-
 async function loadAdminBoardList() {
   const list = document.getElementById('admin-board-list');
   list.innerHTML = '<div class="empty">불러오는 중...</div>';
@@ -270,9 +267,8 @@ async function loadAdminBoardList() {
     </div>
   `).join('');
 }
-
 async function applyAsCoHost(id) {
-  const hostName = prompt('공동호스트로 등록할 운영진 이름을 입력해주세요.');
+  const hostName = prompt('공동호스트로 등록할 운영진 이름을 입력해주세요.', adminName);
   if (!hostName) return;
   const res = await api({ action: 'applyBoardHost', id, hostName: hostName.trim() });
   if (res.success) loadAdminBoardList();
@@ -285,14 +281,12 @@ async function changeAdminBoardStatus(id, status) {
   if (res.success) loadAdminBoardList();
   else alert(res.message);
 }
-
 async function deleteAdminBoardPost(id) {
   if (!confirm('이 게시글을 삭제할까요?')) return;
   const res = await api({ action: 'deleteBoardPost', id, isAdmin: true });
   if (res.success) loadAdminBoardList();
   else alert(res.message);
 }
-
 async function loadActivities() {
   const res = await api({ action: 'getActivities', generation: currentGen });
   if (res.success) {
@@ -301,7 +295,6 @@ async function loadActivities() {
     renderActivityList();
   }
 }
-
 async function loadMembers() {
   const res = await api({ action: 'getMembers', generation: currentGen });
   if (res.success) {
@@ -310,7 +303,6 @@ async function loadMembers() {
     renderMemberList();
   }
 }
-
 function populateActivitySelects() {
   const selects = ['daily-activity', 'payment-activity', 'manual-activity'];
   selects.forEach(id => {
@@ -321,7 +313,6 @@ function populateActivitySelects() {
     });
   });
 }
-
 async function loadDashboard() {
   const content = document.getElementById('dashboard-content');
   content.innerHTML = '<div class="empty">불러오는 중...</div>';
@@ -382,7 +373,6 @@ async function loadDashboard() {
     content.innerHTML = html;
   } catch(e) { content.innerHTML = '<div class="empty">불러오기 실패</div>'; }
 }
-
 async function toggleAttendanceDetail(activityId) {
   const container = document.getElementById(`att-detail-${activityId}`);
   if (!container) return;
@@ -410,7 +400,6 @@ async function toggleAttendanceDetail(activityId) {
   html += '</table>';
   container.innerHTML = html;
 }
-
 async function download1365(activityId, actName) {
   const res = await api({ action: 'get1365List', activityId, generation: currentGen });
   if (!res.success || res.list.length === 0) { alert('1365 신청 대상자가 없어요.'); return; }
@@ -434,7 +423,6 @@ async function download1365(activityId, actName) {
     XLSX.writeFile(wb, `1365_${actName}.xlsx`);
   };
 }
-
 function renderMemberList() {
   const list = document.getElementById('member-list');
   if (allMembers.length === 0) { list.innerHTML = '<div class="empty">대원이 없어요</div>'; return; }
@@ -478,35 +466,28 @@ function renderMemberList() {
     </div>`;
   }).join('');
 }
-
 function toggleEditMember(idx) {
   const el = document.getElementById(`edit-member-${idx}`);
   if (!el) return;
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
-
 async function saveEditMember(idx) {
   const m = allMembers[idx];
   let curName = m['이름'];
   let curPhone4 = String(m['전화번호']).replace(/-/g, '').replace(/\*/g, '').slice(-4);
-
   const newName = document.getElementById(`edit-member-name-${idx}`).value.trim();
   const newPhoneRaw = document.getElementById(`edit-member-phone-${idx}`).value.trim();
   const newBirth = document.getElementById(`edit-member-birth-${idx}`).value.trim();
   const newCode = document.getElementById(`edit-member-code-${idx}`).value.trim();
   const new1365 = document.getElementById(`edit-member-1365-${idx}`).value.trim();
-
   if (!newName) { showMsg(`edit-member-msg-${idx}`, '이름은 필수예요.', 'error'); return; }
-
   const changes = [];
   if (newName !== m['이름']) changes.push({ field: '이름', value: newName });
   if (newPhoneRaw) changes.push({ field: '전화번호', value: newPhoneRaw });
   if (newBirth !== (m['생년월일'] || '')) changes.push({ field: '생년월일', value: newBirth });
   if (newCode !== String(m['인식코드'] || '')) changes.push({ field: '인식코드', value: newCode });
   if (new1365 !== (m['1365 ID'] || '')) changes.push({ field: '1365 ID', value: new1365 });
-
   if (changes.length === 0) { toggleEditMember(idx); return; }
-
   for (const change of changes) {
     const res = await api({ action: 'updateMember', name: curName, phone4: curPhone4, field: change.field, value: change.value, generation: currentGen });
     if (!res.success) {
@@ -516,10 +497,8 @@ async function saveEditMember(idx) {
     if (change.field === '이름') curName = change.value;
     if (change.field === '전화번호') curPhone4 = String(change.value).replace(/-/g, '').slice(-4);
   }
-
   await loadMembers();
 }
-
 async function toggleMember(idx, field) {
   const m = allMembers[idx];
   const current = String(m[field]).toUpperCase() === 'TRUE';
@@ -529,7 +508,6 @@ async function toggleMember(idx, field) {
   if (res.success) { allMembers[idx][field] = newVal; renderMemberList(); }
   else alert(res.message);
 }
-
 function renderActivityList() {
   const list = document.getElementById('activity-list');
   if (allActivities.length === 0) { list.innerHTML = '<div class="empty">등록된 활동이 없어요</div>'; return; }
@@ -595,7 +573,6 @@ function renderActivityList() {
     </div>`;
   }).join('');
 }
-
 async function toggleActivity(idx) {
   const act = allActivities[idx];
   const current = String(act['활성화']).toUpperCase() === 'TRUE';
@@ -603,7 +580,6 @@ async function toggleActivity(idx) {
   if (res.success) { allActivities[idx]['활성화'] = !current ? 'TRUE' : 'FALSE'; renderActivityList(); }
   else alert(res.message);
 }
-
 async function addActivity() {
   const id = document.getElementById('new-act-id').value.trim();
   const name = document.getElementById('new-act-name').value.trim();
@@ -628,7 +604,6 @@ async function addActivity() {
     await loadActivities();
   } else { showMsg('activity-msg', res.message, 'error'); }
 }
-
 async function addDailyMember() {
   const name = document.getElementById('daily-name').value.trim();
   const phone = document.getElementById('daily-phone').value.trim();
@@ -644,7 +619,6 @@ async function addDailyMember() {
     document.getElementById('daily-phone').value = '';
   } else { showMsg('daily-msg', res.message, 'error'); }
 }
-
 async function loadPayment() {
   const activityId = document.getElementById('payment-activity').value;
   if (!activityId) return;
@@ -669,13 +643,11 @@ async function loadPayment() {
     </div>`;
   }).join('');
 }
-
 async function togglePayment(activityId, name, phone4, currentPaid) {
   const res = await api({ action: 'updatePayment', activityId, name, phone4, paid: !currentPaid });
   if (res.success) loadPayment();
   else alert(res.message);
 }
-
 async function addManualAttendance() {
   const activityId = document.getElementById('manual-activity').value;
   const name = document.getElementById('manual-name').value.trim();
@@ -688,7 +660,6 @@ async function addManualAttendance() {
     document.getElementById('manual-phone').value = '';
   } else { showMsg('manual-msg', res.message, 'error'); }
 }
-
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t, i) => {
     t.classList.toggle('active',
@@ -701,7 +672,6 @@ function switchTab(tab) {
     document.getElementById('section-'+t).classList.toggle('active', t===tab);
   });
 }
-
 document.getElementById('new-act-extra').addEventListener('change', function() {
   document.getElementById('new-act-extra-wrap').style.display = this.checked ? 'block' : 'none';
 });
@@ -715,14 +685,12 @@ document.getElementById('new-act-extra').addEventListener('change', function() {
     wrap.style.display = 'none';
   }
 }
-
 async function loadChecklist(idx) {
   const act = allActivities[idx];
   const res = await api({ action: 'getChecklist', activityId: act['활동ID'] });
   if (!res.success) return;
   renderChecklist(idx, res.items);
 }
-
 function renderChecklist(idx, items) {
   const container = document.getElementById(`checklist-items-${idx}`);
   if (items.length === 0) {
@@ -740,7 +708,6 @@ function renderChecklist(idx, items) {
       </div>
     </div>`).join('');
 }
-
 async function addChecklistItem(idx) {
   const input = document.getElementById(`checklist-input-${idx}`);
   const name = input.value.trim();
@@ -752,7 +719,6 @@ async function addChecklistItem(idx) {
   const saveRes = await api({ action: 'saveChecklist', activityId: act['활동ID'], items });
   if (saveRes.success) { input.value = ''; renderChecklist(idx, items); }
 }
-
 async function toggleCheckItem(idx, j, checked) {
   const act = allActivities[idx];
   const res = await api({ action: 'getChecklist', activityId: act['활동ID'] });
@@ -761,7 +727,6 @@ async function toggleCheckItem(idx, j, checked) {
   await api({ action: 'saveChecklist', activityId: act['활동ID'], items: res.items });
   renderChecklist(idx, res.items);
 }
-
 async function moveCheckItem(idx, j, dir) {
   const act = allActivities[idx];
   const res = await api({ action: 'getChecklist', activityId: act['활동ID'] });
@@ -773,7 +738,6 @@ async function moveCheckItem(idx, j, dir) {
   await api({ action: 'saveChecklist', activityId: act['활동ID'], items });
   renderChecklist(idx, items);
 }
-
 async function deleteCheckItem(idx, j) {
   if (!confirm('삭제할까요?')) return;
   const act = allActivities[idx];
@@ -787,12 +751,10 @@ async function deleteCheckItem(idx, j) {
   const wrap = document.getElementById(`edit-activity-${idx}`);
   wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
 }
-
 function toggleEditExtra(idx) {
   const checked = document.getElementById(`edit-extra-${idx}`).checked;
   document.getElementById(`edit-extra-wrap-${idx}`).style.display = checked ? 'block' : 'none';
 }
-
 async function saveEditActivity(idx) {
   const act = allActivities[idx];
   const name = document.getElementById(`edit-name-${idx}`).value.trim();
@@ -829,12 +791,10 @@ async function saveEditActivity(idx) {
     showMsg(`edit-act-msg-${idx}`, res.message, 'error');
   }
 }
-
  function togglePerfectList() {
   const el = document.getElementById('perfect-list');
   if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
-
      // 개근 수 확인
  function getCountedPastActivityIds() {
   const countedActivities = allActivities.filter(act =>
@@ -848,7 +808,6 @@ async function saveEditActivity(idx) {
   });
   return new Set(pastActivities.map(a => a['활동ID']));
 }
-
       // 개근 수 표기
  async function loadMemberAttendanceStats() {
   const attRes = await api({ action: 'getAttendance' });
@@ -871,6 +830,7 @@ async function saveEditActivity(idx) {
     };
   });
 }
+initAdmin();
 </script>
 </body>
 </html>
