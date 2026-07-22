@@ -1708,10 +1708,10 @@ function playBeep(freq, duration, type) {
   osc.stop(ctx.currentTime + duration);
 }
 const countSounds = {
-  '3': new Audio('count-3.mp3'),
-  '2': new Audio('count-2.mp3'),
-  '1': new Audio('count-1.mp3'),
-  'GO': new Audio('count-go.mp3')
+  '3': new Audio('sound/count-3.mp3'),
+  '2': new Audio('sound/count-2.mp3'),
+  '1': new Audio('sound/count-1.mp3'),
+  'GO': new Audio('sound/count-go.mp3')
 };
 function playCountClip(step) {
   const clip = countSounds[step];
@@ -1721,15 +1721,15 @@ function playItemSound() {
   playBeep(660, 0.1, 'triangle');
   setTimeout(() => playBeep(990, 0.15, 'triangle'), 90);
 }
-const dmgSound = new Audio('dmg_1_short.mp3');
+const dmgSound = new Audio('sound/dmg_1_short.mp3');
 function playHitSound() {
   dmgSound.currentTime = 0;
   dmgSound.play();
 }
-const bgmAudio = new Audio('background_1.mp3');
+const bgmAudio = new Audio('sound/background_1.mp3');
 bgmAudio.loop = true;
 bgmAudio.volume = 0.35;
- const gameOverSound = new Audio('gameover.mp3');
+ const gameOverSound = new Audio('sound/gameover.mp3');
 function playGameOverSound() {
   gameOverSound.currentTime = 0;
   gameOverSound.play();
