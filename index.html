@@ -123,12 +123,32 @@
     <div id="login-code-wrap" style="display:none;">
       <label id="login-code-label">고유코드</label>
       <input type="text" id="login-code" placeholder="3글자" maxlength="3">
+      <div style="text-align:right; margin-top:6px;">
+        <button type="button" onclick="openCodeReset()" style="font-size:12px; color:#888; background:none; border:none; cursor:pointer; text-decoration:underline;">고유코드를 잊으셨나요? 찾기&바꾸기</button>
+      </div>
     </div>
     <button class="btn" onclick="doMemberLogin()">로그인</button>
     <div class="msg" id="login-msg"></div>
   </div>
 </div>
-
+<div id="code-reset-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:999; align-items:center; justify-content:center;">
+  <div class="card" style="max-width:320px; margin:0; padding:24px;">
+    <h2 style="margin-bottom:16px; font-size:18px;">고유코드 찾기&바꾸기</h2>
+    <div id="code-reset-step1">
+      <label>전화번호 (전체)</label>
+      <input type="text" id="code-reset-phone" placeholder="010-0000-0000" inputmode="numeric" maxlength="13">
+      <button class="btn" onclick="verifyCodeReset()">확인</button>
+    </div>
+    <div id="code-reset-step2" style="display:none;">
+      <label>새 고유코드</label>
+      <input type="text" id="code-reset-newcode" placeholder="3글자" maxlength="3">
+      <button class="btn" onclick="submitCodeReset()">변경하기</button>
+    </div>
+    <button class="btn btn-outline-red" style="margin-top:8px;" onclick="closeCodeReset()">취소</button>
+    <div class="msg" id="code-reset-msg"></div>
+  </div>
+</div>
+ 
 <!-- 로그인 후 앱 전체 -->
 <div id="app-content" style="display:none;">
  <div class="app-header">
@@ -361,6 +381,53 @@ function startSession(data) {
   SESSION = { name: data.name, phone4: data.phone4, generations: data.generations, lastActivity: Date.now() };
   localStorage.setItem('sdm_session', JSON.stringify(SESSION));
   enterApp();
+}
+ function openCodeReset() {
+  document.getElementById('code-reset-phone').value = '';
+  document.getElementById('code-reset-newcode').value = '';
+  document.getElementById('code-reset-step1').style.display = 'block';
+  document.getElementById('code-reset-step2').style.display = 'none';
+  document.getElementById('code-reset-msg').textContent = '';
+  document.getElementById('code-reset-msg').className = 'msg';
+  document.getElementById('code-reset-modal').style.display = 'flex';
+}
+function closeCodeReset() {
+  document.getElementById('code-reset-modal').style.display = 'none';
+}
+document.getElementById('code-reset-phone').addEventListener('input', () => {
+  const input = document.getElementById('code-reset-phone');
+  const digits = input.value.replace(/[^0-9]/g, '').slice(0, 11);
+  let formatted = digits;
+  if (digits.length > 3 && digits.length <= 7) {
+    formatted = digits.slice(0, 3) + '-' + digits.slice(3);
+  } else if (digits.length > 7) {
+    formatted = digits.slice(0, 3) + '-' + digits.slice(3, 7) + '-' + digits.slice(7);
+  }
+  input.value = formatted;
+});
+async function verifyCodeReset() {
+  const name = document.getElementById('login-name').value.trim();
+  const phone = document.getElementById('code-reset-phone').value.trim();
+  if (!name) { showMsg('code-reset-msg', '먼저 로그인 화면에서 이름을 입력해주세요.', 'error'); return; }
+  if (!phone) { showMsg('code-reset-msg', '전화번호를 입력해주세요.', 'error'); return; }
+  const res = await api({ action: 'resetMemberCode', name, phone });
+  if (!res.success) { showMsg('code-reset-msg', res.message, 'error'); return; }
+  document.getElementById('code-reset-step1').style.display = 'none';
+  document.getElementById('code-reset-step2').style.display = 'block';
+  showMsg('code-reset-msg', '확인되었습니다. 새 고유코드를 입력해주세요.', 'success');
+}
+async function submitCodeReset() {
+  const name = document.getElementById('login-name').value.trim();
+  const phone = document.getElementById('code-reset-phone').value.trim();
+  const newCode = document.getElementById('code-reset-newcode').value.trim();
+  if (!newCode) { showMsg('code-reset-msg', '새 고유코드를 입력해주세요.', 'error'); return; }
+  const res = await api({ action: 'resetMemberCode', name, phone, newCode });
+  if (!res.success) { showMsg('code-reset-msg', res.message, 'error'); return; }
+  showMsg('code-reset-msg', res.message, 'success');
+  setTimeout(() => {
+    closeCodeReset();
+    document.getElementById('login-code').value = newCode;
+  }, 1200);
 }
 function touchSession() {
   if (!SESSION) return;
