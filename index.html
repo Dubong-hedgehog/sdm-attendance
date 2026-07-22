@@ -1100,6 +1100,7 @@ function launchAnimalGame(generation, name) {
   let downX = 0, downY = 0, downCell = null;
   let timerInterval = null;
   let gameStartTime = 0;
+  let showShuffleMessage = false;
   document.getElementById('game-score').textContent = '0';
 
   function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
@@ -1114,12 +1115,64 @@ function launchAnimalGame(generation, name) {
     );
     return type;
   }
-  function createInitialGrid() {
+function boardHasAnyMatch() {
+    return findMatches().matched.size > 0;
+  }
+  function trySwapCheck(r1, c1, r2, c2) {
+    const a = grid[r1][c1], b = grid[r2][c2];
+    grid[r1][c1] = b; grid[r2][c2] = a;
+    const has = boardHasAnyMatch();
+    grid[r1][c1] = a; grid[r2][c2] = b;
+    return has;
+  }
+  function hasPossibleMove() {
     for (let r = 0; r < GRID_ROWS; r++) {
-      grid[r] = [];
       for (let c = 0; c < GRID_COLS; c++) {
-        grid[r][c] = { type: randomType(r, c) };
+        if (c < GRID_COLS - 1 && trySwapCheck(r, c, r, c + 1)) return true;
+        if (r < GRID_ROWS - 1 && trySwapCheck(r, c, r + 1, c)) return true;
       }
+    }
+    return false;
+  }
+  function shuffleBoard() {
+    const flat = [];
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) flat.push(grid[r][c]);
+    }
+    let attempts = 0;
+    while (true) {
+      attempts++;
+      for (let i = flat.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = flat[i]; flat[i] = flat[j]; flat[j] = tmp;
+      }
+      let idx = 0;
+      for (let r = 0; r < GRID_ROWS; r++) {
+        for (let c = 0; c < GRID_COLS; c++) grid[r][c] = flat[idx++];
+      }
+      if (!boardHasAnyMatch() && hasPossibleMove()) break;
+      if (attempts > 500) break;
+    }
+  }
+  async function announceShuffle() {
+    showShuffleMessage = true;
+    await sleep(700);
+    shuffleBoard();
+    showShuffleMessage = false;
+    await sleep(300);
+  }
+  function createInitialGrid() {
+    let attempts = 0;
+    while (true) {
+      attempts++;
+      for (let r = 0; r < GRID_ROWS; r++) {
+        grid[r] = [];
+        for (let c = 0; c < GRID_COLS; c++) {
+          grid[r][c] = { type: randomType(r, c) };
+        }
+      }
+      if (hasPossibleMove()) break;
+      if (attempts > 500) break;
     }
   }
   createInitialGrid();
@@ -1227,6 +1280,8 @@ function launchAnimalGame(generation, name) {
       await sleep(180);
       comboLevel++;
     }
+      if (running && !hasPossibleMove()) {
+      await announceShuffle();
   }
 
   async function trySwap(r1, c1, r2, c2) {
@@ -1306,6 +1361,15 @@ function launchAnimalGame(generation, name) {
     }
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
+    if (showShuffleMessage) {
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(0, H / 2 - 30, W, 60);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('섞을 조합이 없어 다시 섞을게요!', W / 2, H / 2 + 6);
+      ctx.textAlign = 'left';
+    }
     if (running) requestAnimationFrame(draw);
   }
 
