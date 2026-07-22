@@ -306,10 +306,7 @@
    <div id="game-entry-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:999; align-items:center; justify-content:center;">
       <div class="card" style="max-width:320px; margin:0; padding:24px;">
         <h2 style="margin-bottom:16px;" id="game-entry-title">게임 시작</h2>
-        <label>기수</label>
-        <input type="text" id="game-gen" placeholder="8" inputmode="numeric">
-        <label>이름</label>
-        <input type="text" id="game-name" placeholder="홍길동">
+        <p style="font-size:14px; color:#666; text-align:center;" id="game-entry-info"></p>
         <button class="btn" onclick="confirmStartGame()">시작하기</button>
         <button class="btn btn-outline-red" style="margin-top:8px;" onclick="closeGameEntry()">취소</button>
         <div class="msg" id="game-entry-msg"></div>
@@ -663,11 +660,16 @@ function switchTab(tab) {
 let currentGameName = '';
 let tiltX = 0;
 let orientationHandler = null;
+function getMyPrimaryGeneration() {
+  const myGens = (SESSION.generations || []).map(g => g.generation);
+  if (myGens.length === 0) return CURRENT_GEN;
+  if (myGens.includes(String(CURRENT_GEN))) return CURRENT_GEN;
+  return myGens.slice().sort((a, b) => Number(b) - Number(a))[0];
+}
 function openGameEntry(gameName) {
   currentGameName = gameName;
   document.getElementById('game-entry-title').textContent = gameName + ' 시작';
-  document.getElementById('game-gen').value = '';
-  document.getElementById('game-name').value = '';
+  document.getElementById('game-entry-info').textContent = SESSION.name + ' · ' + getMyPrimaryGeneration() + '기';
   document.getElementById('game-entry-msg').textContent = '';
   document.getElementById('game-entry-modal').style.display = 'flex';
 }
@@ -675,9 +677,8 @@ function closeGameEntry() {
   document.getElementById('game-entry-modal').style.display = 'none';
 }
 async function confirmStartGame() {
-  const gen = document.getElementById('game-gen').value.trim();
-  const name = document.getElementById('game-name').value.trim();
-  if (!gen || !name) { showMsg('game-entry-msg', '기수와 이름을 입력해주세요.', 'error'); return; }
+  const gen = getMyPrimaryGeneration();
+  const name = SESSION.name;
   const res = await api({ action: 'verifyGamePlayer', generation: gen, name });
   if (!res.success) {
     showMsg('game-entry-msg', res.message, 'error');
