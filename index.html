@@ -1664,7 +1664,7 @@ async function refreshCardBattleState() {
   if (!cbRoomId || cbAnimating) return;
   const res = await api({ action: 'getCardRoomState', roomId: cbRoomId });
   if (!res.success) return;
-  cbBoard = res.board;
+  if (Array.isArray(res.board)) cbBoard = res.board;
   const myScore = cbMyPlayerNum === 1 ? res.score1 : res.score2;
   const oppScore = cbMyPlayerNum === 1 ? res.score2 : res.score1;
   document.getElementById('cb-score-me').textContent = myScore;
@@ -1686,6 +1686,10 @@ async function refreshCardBattleState() {
 
 function renderCardBoard(myTurn) {
   const container = document.getElementById('cb-board');
+  if (!Array.isArray(cbBoard) || cbBoard.length === 0) {
+    container.innerHTML = '<div style="grid-column:1/-1; color:#fff; text-align:center; padding:20px; font-size:13px;">카드를 불러오는 중...</div>';
+    return;
+  }
   container.innerHTML = cbBoard.map((card, idx) => {
     const isSelected = cbSelected.includes(idx);
     const faceUp = card.matched || isSelected;
