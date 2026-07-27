@@ -98,6 +98,15 @@
   .btn-blue { background:#E6F1FB; color:#185FA5; }
   .divider { border:none; border-top:1px solid #eee; margin:20px 0; }
   .game-icon { width:52px; height:52px; margin:0 auto; border-radius:16px; background:#E1F5EE; display:flex; align-items:center; justify-content:center; }
+ /* 동물카드대전 뒤집기 애니메이션 */
+  .cb-card { aspect-ratio:1; border-radius:8px; position:relative; perspective:600px; }
+  .cb-card-inner { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition: transform 0.45s ease; }
+  .cb-card.flipped .cb-card-inner { transform: rotateY(180deg); }
+  .cb-card-face { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; backface-visibility:hidden; border-radius:8px; overflow:hidden; font-size:20px; }
+  .cb-card-back { background:#fff; }
+  .cb-card.selected .cb-card-back { background:#378ADD; }
+  .cb-card-front { background:#1D9E75; transform: rotateY(180deg); }
+  .cb-card-front img { width:100%; height:100%; object-fit:cover; display:block; }
   /* 로그인 게이트 */
   .login-body { padding:24px 20px; }
 </style>
@@ -1605,6 +1614,7 @@ let cbSelected = [];
 let cbLastMoveTs = 0;
 let cbPollTimer = null;
 let cbAnimating = false;
+let cbBoardInitialized = false;
 
 async function openCardBattle() {
   const gen = getMyPrimaryGeneration();
@@ -1655,6 +1665,8 @@ function startCardBattlePolling() {
   document.getElementById('cb-opponent').textContent = cbOpponentName;
   cbLastMoveTs = 0;
   cbSelected = [];
+  cbBoardInitialized = false;
+  document.getElementById('cb-board').innerHTML = '<div style="grid-column:1/-1; color:#fff; text-align:center; padding:20px; font-size:13px;">카드를 불러오는 중...</div>';
   if (cbPollTimer) clearInterval(cbPollTimer);
   refreshCardBattleState();
   cbPollTimer = setInterval(refreshCardBattleState, 1500);
@@ -1664,7 +1676,10 @@ async function refreshCardBattleState() {
   if (!cbRoomId || cbAnimating) return;
   const res = await api({ action: 'getCardRoomState', roomId: cbRoomId });
   if (!res.success) return;
-  if (Array.isArray(res.board)) cbBoard = res.board;
+  if (Array.isArray(res.board) && res.board.length > 0) {
+    cbBoard = res.board;
+    if (!cbBoardInitialized) { initCardBoard(); cbBoardInitialized = true; }
+  }
   const myScore = cbMyPlayerNum === 1 ? res.score1 : res.score2;
   const oppScore = cbMyPlayerNum === 1 ? res.score2 : res.score1;
   document.getElementById('cb-score-me').textContent = myScore;
@@ -1684,25 +1699,32 @@ async function refreshCardBattleState() {
   }
 }
 
-function renderCardBoard(myTurn) {
+// 카드 14장의 DOM을 한 번만 생성 (이후로는 상태만 갱신해서 트랜지션이 자연스럽게 걸리게 함)
+function initCardBoard() {
   const container = document.getElementById('cb-board');
-  if (!Array.isArray(cbBoard) || cbBoard.length === 0) {
-    container.innerHTML = '<div style="grid-column:1/-1; color:#fff; text-align:center; padding:20px; font-size:13px;">카드를 불러오는 중...</div>';
-    return;
-  }
-  container.innerHTML = cbBoard.map((card, idx) => {
+  container.innerHTML = cbBoard.map((card, idx) => `
+    <div class="cb-card" id="cb-card-${idx}">
+      <div class="cb-card-inner">
+        <div class="cb-card-face cb-card-back">❓</div>
+        <div class="cb-card-face cb-card-front"><img src="${CARD_IMAGES[card.type - 1]}"></div>
+      </div>
+    </div>
+  `).join('');
+}
+ 
+function renderCardBoard(myTurn) {
+  if (!Array.isArray(cbBoard) || cbBoard.length === 0) return;
+  cbBoard.forEach((card, idx) => {
+    const el = document.getElementById(`cb-card-${idx}`);
+    if (!el) return;
     const isSelected = cbSelected.includes(idx);
     const faceUp = card.matched || isSelected;
-    const inner = faceUp
-      ? `<img src="${CARD_IMAGES[card.type - 1]}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;">`
-      : '❓';
-    const bg = card.matched ? '#1D9E75' : (isSelected ? '#378ADD' : '#fff');
+    el.classList.toggle('flipped', faceUp);
+    el.classList.toggle('selected', isSelected && !card.matched);
     const clickable = myTurn && !card.matched && !isSelected && cbSelected.length < 2;
-    return `<div onclick="${clickable ? `onCardBattleClick(${idx})` : ''}"
-      style="aspect-ratio:1; background:${bg}; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px; cursor:${clickable ? 'pointer' : 'default'}; overflow:hidden;">
-      ${inner}
-    </div>`;
-  }).join('');
+    el.style.cursor = clickable ? 'pointer' : 'default';
+    el.onclick = clickable ? () => onCardBattleClick(idx) : null;
+  });
 }
 
 async function onCardBattleClick(idx) {
@@ -1733,11 +1755,11 @@ async function onCardBattleClick(idx) {
 }
 
 async function animateCardMove(move) {
-  // 상대가 뒤집은 카드를 잠깐 보여줬다가 틀렸으면 다시 덮기 (연출용, 실제 판정은 서버에서 이미 완료됨)
+  // 상대가 뒤집은 카드를 잠깐 보여줬다가 틀렸으면 다시 덮기 (부드러운 플립 트랜지션, 실제 판정은 서버에서 이미 완료됨)
   cbAnimating = true;
   cbSelected = [move.idx1, move.idx2];
   renderCardBoard(false);
-  if (!move.matched) await new Promise(r => setTimeout(r, 900));
+  if (!move.matched) await new Promise(r => setTimeout(r, 1100));
   cbSelected = [];
   cbAnimating = false;
 }
