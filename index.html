@@ -1617,6 +1617,7 @@ let cbAnimating = false;
 let cbLastStatus = '';
 let cbPolling = false;
 let cbBoardInitialized = false;
+let cbStateVersion = 0;
 
 async function openCardBattle() {
   const gen = getMyPrimaryGeneration();
@@ -1669,6 +1670,7 @@ function startCardBattlePolling() {
   cbLastStatus = '';
   cbSelected = [];
   cbBoardInitialized = false;
+  cbStateVersion = 0;
   document.getElementById('cb-board').innerHTML = '<div style="grid-column:1/-1; color:#fff; text-align:center; padding:20px; font-size:13px;">카드를 불러오는 중...</div>';
   if (cbPollTimer) clearInterval(cbPollTimer);
   bgmAudio.currentTime = 0;
@@ -1682,6 +1684,7 @@ async function refreshCardBattleState() {
   if (!cbRoomId || !cbPolling) return;
   if (cbAnimating) { setTimeout(refreshCardBattleState, 200); return; }
 
+  const versionAtRequest = cbStateVersion;
   let res;
   try {
     res = await api({ action: 'getCardRoomState', roomId: cbRoomId, sinceMoveTs: cbLastMoveTs, sinceStatus: cbLastStatus });
@@ -1691,6 +1694,12 @@ async function refreshCardBattleState() {
   }
   if (!cbPolling) return;
   if (!res.success) { setTimeout(refreshCardBattleState, 1000); return; }
+
+  // 이 응답을 기다리는 사이에 내가 직접 수를 둬서 상태가 이미 갱신됐다면, 그 응답은 내 예전 요청 기준이라 낡은 것 → 버리고 최신 기준으로 다시 조회
+  if (cbStateVersion !== versionAtRequest) {
+    refreshCardBattleState();
+    return;
+  }
 
   cbLastStatus = res.status;
   if (Array.isArray(res.board) && res.board.length > 0) {
@@ -1706,6 +1715,7 @@ async function refreshCardBattleState() {
 
   if (res.lastMove && res.lastMove.ts !== cbLastMoveTs) {
     cbLastMoveTs = res.lastMove.ts;
+    cbStateVersion++;
     if (res.lastMove.matched) playItemSound(); else playHitSound();
     await animateCardMove(res.lastMove);
   }
@@ -1762,6 +1772,7 @@ async function onCardBattleClick(idx) {
     cbBoard = res.board;
     cbLastMoveTs = res.lastMove.ts;
     cbLastStatus = res.status;
+    cbStateVersion++;
     if (res.lastMove.matched) playItemSound(); else playHitSound();
     const myScore = cbMyPlayerNum === 1 ? res.score1 : res.score2;
     const oppScore = cbMyPlayerNum === 1 ? res.score2 : res.score1;
