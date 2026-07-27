@@ -1614,6 +1614,8 @@ let cbSelected = [];
 let cbLastMoveTs = 0;
 let cbPollTimer = null;
 let cbAnimating = false;
+let cbLastStatus = '';
+let cbPolling = false;
 let cbBoardInitialized = false;
 
 async function openCardBattle() {
@@ -1664,18 +1666,33 @@ function startCardBattlePolling() {
   document.getElementById('cb-me').textContent = cbMyName;
   document.getElementById('cb-opponent').textContent = cbOpponentName;
   cbLastMoveTs = 0;
+  cbLastStatus = '';
   cbSelected = [];
   cbBoardInitialized = false;
   document.getElementById('cb-board').innerHTML = '<div style="grid-column:1/-1; color:#fff; text-align:center; padding:20px; font-size:13px;">카드를 불러오는 중...</div>';
   if (cbPollTimer) clearInterval(cbPollTimer);
+  bgmAudio.currentTime = 0;
+  bgmAudio.play();
+  cbPolling = true;
   refreshCardBattleState();
-  cbPollTimer = setInterval(refreshCardBattleState, 1500);
 }
 
+// 롱폴링: 서버가 변화가 생기거나 최대 6초가 지날 때까지 붙잡고 있다가 응답 → 받자마자 바로 다음 요청
 async function refreshCardBattleState() {
-  if (!cbRoomId || cbAnimating) return;
-  const res = await api({ action: 'getCardRoomState', roomId: cbRoomId });
-  if (!res.success) return;
+  if (!cbRoomId || !cbPolling) return;
+  if (cbAnimating) { setTimeout(refreshCardBattleState, 200); return; }
+
+  let res;
+  try {
+    res = await api({ action: 'getCardRoomState', roomId: cbRoomId, sinceMoveTs: cbLastMoveTs, sinceStatus: cbLastStatus });
+  } catch (e) {
+    setTimeout(refreshCardBattleState, 1000);
+    return;
+  }
+  if (!cbPolling) return;
+  if (!res.success) { setTimeout(refreshCardBattleState, 1000); return; }
+
+  cbLastStatus = res.status;
   if (Array.isArray(res.board) && res.board.length > 0) {
     cbBoard = res.board;
     if (!cbBoardInitialized) { initCardBoard(); cbBoardInitialized = true; }
@@ -1689,14 +1706,18 @@ async function refreshCardBattleState() {
 
   if (res.lastMove && res.lastMove.ts !== cbLastMoveTs) {
     cbLastMoveTs = res.lastMove.ts;
+    if (res.lastMove.matched) playItemSound(); else playHitSound();
     await animateCardMove(res.lastMove);
   }
   renderCardBoard(myTurn);
 
   if (res.status === '종료') {
-    clearInterval(cbPollTimer);
+    cbPolling = false;
     showCardBattleResult(res.winner, myScore, oppScore);
+    return;
   }
+
+  refreshCardBattleState();
 }
 
 // 카드 14장의 DOM을 한 번만 생성 (이후로는 상태만 갱신해서 트랜지션이 자연스럽게 걸리게 함)
@@ -1740,6 +1761,8 @@ async function onCardBattleClick(idx) {
     if (!res.success) { alert(res.message); return; }
     cbBoard = res.board;
     cbLastMoveTs = res.lastMove.ts;
+    cbLastStatus = res.status;
+    if (res.lastMove.matched) playItemSound(); else playHitSound();
     const myScore = cbMyPlayerNum === 1 ? res.score1 : res.score2;
     const oppScore = cbMyPlayerNum === 1 ? res.score2 : res.score1;
     document.getElementById('cb-score-me').textContent = myScore;
@@ -1748,7 +1771,7 @@ async function onCardBattleClick(idx) {
     document.getElementById('cb-turn-indicator').textContent = myTurn ? '내 턴' : '상대 턴';
     renderCardBoard(myTurn);
     if (res.status === '종료') {
-      clearInterval(cbPollTimer);
+      cbPolling = false;
       showCardBattleResult(res.winner, myScore, oppScore);
     }
   }
@@ -1767,6 +1790,8 @@ async function animateCardMove(move) {
 function showCardBattleResult(winner, myScore, oppScore) {
   document.getElementById('card-battle-play').style.display = 'none';
   document.getElementById('card-battle-result').style.display = 'block';
+  bgmAudio.pause();
+  playGameOverSound();
   const title = document.getElementById('cb-result-title');
   if (winner === 'opponent_left') {
     title.textContent = '상대가 나갔어요';
@@ -1786,7 +1811,9 @@ function closeCardBattleResult() {
 }
 
 async function exitCardBattle() {
+  cbPolling = false;
   if (cbPollTimer) clearInterval(cbPollTimer);
+  bgmAudio.pause();
   if (cbRoomId) {
     await api({ action: 'leaveCardGame', roomId: cbRoomId, name: cbMyName });
   }
