@@ -14,7 +14,7 @@
   /* 앱 헤더 */
   .app-header { background: linear-gradient(135deg, #1D9E75 0%, #0a7a56 100%); padding: 22px 20px 18px; position: relative; overflow: hidden; }
   .app-header::after { content:''; position:absolute; width:170px; height:170px; border-radius:50%; right:-60px; top:-70px; background:rgba(255,255,255,0.10); }
-  .app-header::before { content:''; position:absolute; width:90px; height:90px; border-radius:50%; left:-30px; bottom:-55px; background:rgba(255,255,255,0.06); }
+  .app-header::before { content:''; position:absolute; width:90px; 먼지닦기:90px; border-radius:50%; left:-30px; bottom:-55px; background:rgba(255,255,255,0.06); }
   .app-title { font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
   .app-subtitle { font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 2px; }
   .header-top { position:relative; z-index:1; display:flex; justify-content:space-between; align-items:flex-start; }
@@ -275,11 +275,11 @@
         <div style="font-size:12px; color:#888; margin-top:2px;">쓰레기만 터치해요</div>
         <button class="btn-sm btn-green" style="width:100%; margin-top:10px;" onclick="openGameEntry('플로깅 팡')">플레이</button>
       </div>
-  <div class="list-item" style="text-align:center;">
-        <div class="game-icon" style="font-size:28px;">🌀</div>
-        <div style="font-size:14px; font-weight:500; margin-top:6px;">먼지닦기</div>
-        <div style="font-size:12px; color:#888; margin-top:2px;">먼지를 문질러 닦아요</div>
-        <button class="btn-sm btn-green" style="width:100%; margin-top:10px;" onclick="openGameEntry('먼지닦기')">플레이</button>
+<div class="list-item" style="text-align:center;">
+        <div class="game-icon" style="font-size:28px;">🃏</div>
+        <div style="font-size:14px; font-weight:500; margin-top:6px;">동물카드대전</div>
+        <div style="font-size:12px; color:#888; margin-top:2px;">같은 동물 찾기 실시간 대결</div>
+        <button class="btn-sm btn-green" style="width:100%; margin-top:10px;" onclick="openCardBattle()">플레이</button>
       </div>
       <div class="list-item" style="text-align:center;">
         <div class="game-icon" style="font-size:28px;">🐾</div>
@@ -307,8 +307,8 @@
     <div id="game-rank-list-animal">
       <div class="empty-state">아직 진행 중인 미니게임이 없어요</div>
     </div>
-   <h2 style="margin-top:16px;">먼지닦기 랭킹</h2>
-    <div id="game-rank-list-dust">
+<h2 style="margin-top:16px;">동물카드대전 랭킹</h2>
+    <div id="game-rank-list-cardbattle">
       <div class="empty-state">아직 진행 중인 미니게임이 없어요</div>
     </div>
    <div id="game-entry-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:999; align-items:center; justify-content:center;">
@@ -329,6 +329,30 @@
       </div>
       <canvas id="game-canvas" width="320" height="480" style="background:#eef; border-radius:12px;"></canvas>
       <button class="btn-sm btn-gray" style="margin-top:12px;" onclick="exitGame()">그만하기</button>
+    </div>
+   <div id="card-battle-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#222; z-index:1000; flex-direction:column; align-items:center; justify-content:center; padding:16px;">
+      <div id="card-battle-waiting" style="text-align:center; color:#fff;">
+        <div style="font-size:40px; margin-bottom:12px;">🃏</div>
+        <div style="font-size:15px; margin-bottom:16px;">상대를 찾고 있어요...</div>
+        <button class="btn-sm btn-gray" onclick="exitCardBattle()">취소</button>
+      </div>
+      <div id="card-battle-play" style="display:none; width:100%; max-width:340px;">
+        <div style="display:flex; justify-content:space-between; color:#fff; font-size:13px; margin-bottom:8px;">
+          <span id="cb-me">나</span>
+          <span id="cb-turn-indicator" style="font-weight:700; color:#ffd700;"></span>
+          <span id="cb-opponent">상대</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; color:#fff; font-size:20px; font-weight:700; margin-bottom:12px;">
+          <span id="cb-score-me">0</span>
+          <span id="cb-score-opponent">0</span>
+        </div>
+        <div id="cb-board" style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px;"></div>
+        <button class="btn-sm btn-gray" style="margin-top:14px; width:100%;" onclick="exitCardBattle()">그만하기</button>
+      </div>
+      <div id="card-battle-result" style="display:none; text-align:center; color:#fff;">
+        <div style="font-size:24px; font-weight:800; margin-bottom:8px;" id="cb-result-title"></div>
+        <button class="btn-sm btn-green" onclick="closeCardBattleResult()">확인</button>
+      </div>
     </div>
   </div>
 </div>
@@ -668,7 +692,7 @@ function switchTab(tab) {
   });
   if (tab === 'my' && !myLoaded) { myLoaded = true; loadMyStatus(); }
   if (tab === 'board' && !boardLoaded) { boardLoaded = true; loadBoardPosts(); }
-if (tab === 'game' && !gameRankingLoaded) { gameRankingLoaded = true; loadGameRanking(); loadFloggingRanking(); loadAnimalRanking(); loadDustRanking(); }
+if (tab === 'game' && !gameRankingLoaded) { gameRankingLoaded = true; loadGameRanking(); loadFloggingRanking(); loadAnimalRanking(); loadCardBattleRanking(); }
 }
 let currentGameName = '';
 let tiltX = 0;
@@ -702,8 +726,6 @@ closeGameEntry();
     launchFloggingGame(gen, name);
   } else if (currentGameName === '동물퍼즐') {
     launchAnimalGame(gen, name);
-  } else if (currentGameName === '먼지닦기') {
-    launchDustGame(gen, name);
   } else {
     launchCoalGame(gen, name);
   }
@@ -1520,240 +1542,6 @@ function drawSpecialIcon(cx, cy, size, type) {
   });
 }
 
-function launchDustGame(generation, name) {
-  document.getElementById('game-play-overlay').style.display = 'flex';
-  document.getElementById('game-lives-label').textContent = '진행률';
-  document.getElementById('game-lives').textContent = '0%';
-  const TIME_BASE = 1000000;
-  api({ action: 'getGameRanking', game: '먼지닦기' }).then(res => {
-    if (res.success && res.ranking && res.ranking.length > 0) {
-      document.getElementById('game-best-score').textContent = ((TIME_BASE - res.ranking[0].score) / 1000).toFixed(2) + '초';
-    } else {
-      document.getElementById('game-best-score').textContent = '-';
-    }
-  });
-  const canvas = document.getElementById('game-canvas');
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  const BRUSH_R = 26;
-  const PROG_COLS = 16, PROG_ROWS = 24;
-
-  let running = true;
-  let startTime = 0;
-  let dragging = false;
-  let lastX = null, lastY = null;
-  let octopus = null;
-  let octopusTimer = null;
-  let tickInterval = null;
-  let inkFadeStart = 0;
-
-  const dustCanvas = document.createElement('canvas');
-  dustCanvas.width = W; dustCanvas.height = H;
-  const dustCtx = dustCanvas.getContext('2d');
-  dustCtx.fillStyle = '#8a7a68';
-  dustCtx.fillRect(0, 0, W, H);
-  for (let i = 0; i < 250; i++) {
-    dustCtx.fillStyle = `rgba(${100 + Math.random() * 40},${90 + Math.random() * 30},${70 + Math.random() * 30},0.5)`;
-    const rx = Math.random() * W, ry = Math.random() * H, rr = 4 + Math.random() * 8;
-    dustCtx.beginPath();
-    dustCtx.arc(rx, ry, rr, 0, Math.PI * 2);
-    dustCtx.fill();
-  }
-
-  const progGrid = [];
-  for (let r = 0; r < PROG_ROWS; r++) progGrid[r] = new Array(PROG_COLS).fill(false);
-  let cleanedCount = 0;
-  const totalCells = PROG_COLS * PROG_ROWS;
-
-  function relPos(clientX, clientY) {
-    const rect = canvas.getBoundingClientRect();
-    return { x: clientX - rect.left, y: clientY - rect.top };
-  }
-
-  function checkOctopusHit(x, y) {
-    if (!octopus) return;
-    if (Math.hypot(x - octopus.x, y - octopus.y) <= 30) {
-      octopus = null;
-      playHitSound();
-      inkFadeStart = performance.now();
-    }
-  }
-
-  function wipeAt(x, y) {
-    dustCtx.save();
-    dustCtx.globalCompositeOperation = 'destination-out';
-    dustCtx.beginPath();
-    dustCtx.arc(x, y, BRUSH_R, 0, Math.PI * 2);
-    dustCtx.fill();
-    dustCtx.restore();
-
-    const cellW = W / PROG_COLS, cellH = H / PROG_ROWS;
-    const minC = Math.max(0, Math.floor((x - BRUSH_R) / cellW));
-    const maxC = Math.min(PROG_COLS - 1, Math.floor((x + BRUSH_R) / cellW));
-    const minR = Math.max(0, Math.floor((y - BRUSH_R) / cellH));
-    const maxR = Math.min(PROG_ROWS - 1, Math.floor((y + BRUSH_R) / cellH));
-    for (let r = minR; r <= maxR; r++) {
-      for (let c = minC; c <= maxC; c++) {
-        if (!progGrid[r][c]) {
-          const cx = c * cellW + cellW / 2, cy = r * cellH + cellH / 2;
-          if (Math.hypot(cx - x, cy - y) <= BRUSH_R) {
-            progGrid[r][c] = true;
-            cleanedCount++;
-          }
-        }
-      }
-    }
-    const pct = Math.floor((cleanedCount / totalCells) * 100);
-    document.getElementById('game-lives').textContent = pct + '%';
-    checkOctopusHit(x, y);
-    if (cleanedCount >= totalCells && running) {
-      finishClean();
-    }
-  }
-
-  function wipeLine(x0, y0, x1, y1) {
-    const dist = Math.hypot(x1 - x0, y1 - y0);
-    const steps = Math.max(1, Math.ceil(dist / (BRUSH_R * 0.5)));
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      wipeAt(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t);
-    }
-  }
-
-  canvas.onmousedown = (e) => {
-    dragging = true;
-    const p = relPos(e.clientX, e.clientY);
-    wipeAt(p.x, p.y);
-    lastX = p.x; lastY = p.y;
-  };
-  canvas.onmousemove = (e) => {
-    if (!dragging) return;
-    const p = relPos(e.clientX, e.clientY);
-    if (lastX !== null) wipeLine(lastX, lastY, p.x, p.y);
-    lastX = p.x; lastY = p.y;
-  };
-  canvas.onmouseup = () => { dragging = false; lastX = null; lastY = null; };
-  canvas.ontouchstart = (e) => {
-    e.preventDefault();
-    dragging = true;
-    const t = e.touches[0];
-    const p = relPos(t.clientX, t.clientY);
-    wipeAt(p.x, p.y);
-    lastX = p.x; lastY = p.y;
-  };
-  canvas.ontouchmove = (e) => {
-    e.preventDefault();
-    if (!dragging) return;
-    const t = e.touches[0];
-    const p = relPos(t.clientX, t.clientY);
-    if (lastX !== null) wipeLine(lastX, lastY, p.x, p.y);
-    lastX = p.x; lastY = p.y;
-  };
-  canvas.ontouchend = (e) => { e.preventDefault(); dragging = false; lastX = null; lastY = null; };
-
-  function spawnOctopusLoop() {
-    if (!running) return;
-    const delay = 2500 + Math.random() * 2500;
-    octopusTimer = setTimeout(() => {
-      if (!running) return;
-      octopus = {
-        x: 40 + Math.random() * (W - 80),
-        y: 40 + Math.random() * (H - 80),
-        bornAt: performance.now(),
-        duration: 1500 + Math.random() * 500
-      };
-      spawnOctopusLoop();
-    }, delay);
-  }
-
-  function tick() {
-    if (!running) return;
-    if (octopus && performance.now() - octopus.bornAt > octopus.duration) {
-      octopus = null;
-    }
-  }
-
-  function draw() {
-    if (!running) return;
-    ctx.clearRect(0, 0, W, H);
-    ctx.font = Math.floor(Math.min(W, H) * 0.5) + 'px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🌀', W / 2, H / 2);
-    ctx.drawImage(dustCanvas, 0, 0);
-    if (octopus) {
-      ctx.font = '34px sans-serif';
-      ctx.fillText('🐙', octopus.x, octopus.y);
-    }
-    const elapsedInk = performance.now() - inkFadeStart;
-    if (inkFadeStart > 0 && elapsedInk < 3000) {
-      const alpha = 1 - elapsedInk / 3000;
-      ctx.fillStyle = `rgba(10,10,15,${alpha * 0.85})`;
-      ctx.fillRect(0, 0, W, H);
-    }
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
-    requestAnimationFrame(draw);
-  }
-
-  function runCountdown(callback) {
-    const steps = ['3', '2', '1', 'GO'];
-    const stepDelay = [1000, 1000, 1000, 500];
-    let i = 0;
-    function showStep() {
-      ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = '#eef';
-      ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = '#1D9E75';
-      ctx.font = 'bold 64px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(steps[i], W / 2, H / 2 + 20);
-      ctx.textAlign = 'left';
-      playCountClip(steps[i]);
-      const delay = stepDelay[i];
-      i++;
-      if (i < steps.length) {
-        setTimeout(showStep, delay);
-      } else {
-        setTimeout(() => { ctx.clearRect(0, 0, W, H); callback(); }, delay);
-      }
-    }
-    showStep();
-  }
-
-  async function finishClean() {
-    running = false;
-    if (tickInterval) clearInterval(tickInterval);
-    if (octopusTimer) clearTimeout(octopusTimer);
-    canvas.onmousedown = null; canvas.onmousemove = null; canvas.onmouseup = null;
-    canvas.ontouchstart = null; canvas.ontouchmove = null; canvas.ontouchend = null;
-    bgmAudio.pause();
-    playGameOverSound();
-    const elapsedMs = performance.now() - startTime;
-    const encodedScore = Math.max(0, TIME_BASE - Math.round(elapsedMs));
-    await api({ action: 'saveGameScore', generation, name, game: '먼지닦기', score: encodedScore });
-    alert('클리어! 기록: ' + (elapsedMs / 1000).toFixed(2) + '초');
-    document.getElementById('game-play-overlay').style.display = 'none';
-    loadDustRanking();
-  }
-  window._exitGameCleanup = () => {
-    running = false;
-    if (tickInterval) clearInterval(tickInterval);
-    if (octopusTimer) clearTimeout(octopusTimer);
-    canvas.onmousedown = null; canvas.onmousemove = null; canvas.onmouseup = null;
-    canvas.ontouchstart = null; canvas.ontouchmove = null; canvas.ontouchend = null;
-  };
-
-  runCountdown(() => {
-    bgmAudio.currentTime = 0;
-    bgmAudio.play();
-    startTime = performance.now();
-    tickInterval = setInterval(tick, 50);
-    spawnOctopusLoop();
-    requestAnimationFrame(draw);
-  });
-}
-
 function exitGame() {
   bgmAudio.pause();
   if (window._exitGameCleanup) window._exitGameCleanup();
@@ -1806,9 +1594,183 @@ async function loadAnimalRanking() {
   `).join('');
 }
 
-async function loadDustRanking() {
-  const res = await api({ action: 'getGameRanking', game: '먼지닦기' });
-  const list = document.getElementById('game-rank-list-dust');
+/* ===== 동물카드대전 (실시간 매칭 카드게임) ===== */
+const CARD_IMAGES = ['image/animal1.jpg','image/animal2.jpg','image/animal3.jpg','image/animal4.jpg','image/animal5.jpg','image/animal6.jpg','image/animal7.jpg'];
+let cbRoomId = null;
+let cbMyPlayerNum = null;
+let cbMyName = '';
+let cbOpponentName = '';
+let cbBoard = [];
+let cbSelected = [];
+let cbLastMoveTs = 0;
+let cbPollTimer = null;
+let cbAnimating = false;
+
+async function openCardBattle() {
+  const gen = getMyPrimaryGeneration();
+  const name = SESSION.name;
+  const res = await api({ action: 'verifyGamePlayer', generation: gen, name });
+  if (!res.success) { alert(res.message); return; }
+
+  cbMyName = name;
+  document.getElementById('card-battle-overlay').style.display = 'flex';
+  document.getElementById('card-battle-waiting').style.display = 'block';
+  document.getElementById('card-battle-play').style.display = 'none';
+  document.getElementById('card-battle-result').style.display = 'none';
+
+  const joinRes = await api({ action: 'joinCardGame', name, generation: gen });
+  if (!joinRes.success) {
+    alert(joinRes.message);
+    document.getElementById('card-battle-overlay').style.display = 'none';
+    return;
+  }
+  cbRoomId = joinRes.roomId;
+  cbMyPlayerNum = joinRes.myPlayerNum;
+
+  if (joinRes.status === 'matched') {
+    cbOpponentName = joinRes.opponent;
+    startCardBattlePolling();
+  } else {
+    pollCardBattleWaiting();
+  }
+}
+
+function pollCardBattleWaiting() {
+  if (cbPollTimer) clearInterval(cbPollTimer);
+  cbPollTimer = setInterval(async () => {
+    const res = await api({ action: 'getCardRoomState', roomId: cbRoomId });
+    if (!res.success) return;
+    if (res.status === '진행중') {
+      clearInterval(cbPollTimer);
+      cbOpponentName = cbMyPlayerNum === 1 ? res.player2 : res.player1;
+      startCardBattlePolling();
+    }
+  }, 2000);
+}
+
+function startCardBattlePolling() {
+  document.getElementById('card-battle-waiting').style.display = 'none';
+  document.getElementById('card-battle-play').style.display = 'block';
+  document.getElementById('cb-me').textContent = cbMyName;
+  document.getElementById('cb-opponent').textContent = cbOpponentName;
+  cbLastMoveTs = 0;
+  cbSelected = [];
+  if (cbPollTimer) clearInterval(cbPollTimer);
+  refreshCardBattleState();
+  cbPollTimer = setInterval(refreshCardBattleState, 1500);
+}
+
+async function refreshCardBattleState() {
+  if (!cbRoomId || cbAnimating) return;
+  const res = await api({ action: 'getCardRoomState', roomId: cbRoomId });
+  if (!res.success) return;
+  cbBoard = res.board;
+  const myScore = cbMyPlayerNum === 1 ? res.score1 : res.score2;
+  const oppScore = cbMyPlayerNum === 1 ? res.score2 : res.score1;
+  document.getElementById('cb-score-me').textContent = myScore;
+  document.getElementById('cb-score-opponent').textContent = oppScore;
+  const myTurn = Number(res.turn) === cbMyPlayerNum;
+  document.getElementById('cb-turn-indicator').textContent = myTurn ? '내 턴' : '상대 턴';
+
+  if (res.lastMove && res.lastMove.ts !== cbLastMoveTs) {
+    cbLastMoveTs = res.lastMove.ts;
+    await animateCardMove(res.lastMove);
+  }
+  renderCardBoard(myTurn);
+
+  if (res.status === '종료') {
+    clearInterval(cbPollTimer);
+    showCardBattleResult(res.winner, myScore, oppScore);
+  }
+}
+
+function renderCardBoard(myTurn) {
+  const container = document.getElementById('cb-board');
+  container.innerHTML = cbBoard.map((card, idx) => {
+    const isSelected = cbSelected.includes(idx);
+    const faceUp = card.matched || isSelected;
+    const inner = faceUp
+      ? `<img src="${CARD_IMAGES[card.type - 1]}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;">`
+      : '❓';
+    const bg = card.matched ? '#1D9E75' : (isSelected ? '#378ADD' : '#fff');
+    const clickable = myTurn && !card.matched && !isSelected && cbSelected.length < 2;
+    return `<div onclick="${clickable ? `onCardBattleClick(${idx})` : ''}"
+      style="aspect-ratio:1; background:${bg}; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px; cursor:${clickable ? 'pointer' : 'default'}; overflow:hidden;">
+      ${inner}
+    </div>`;
+  }).join('');
+}
+
+async function onCardBattleClick(idx) {
+  if (cbSelected.includes(idx) || cbSelected.length >= 2) return;
+  cbSelected.push(idx);
+  renderCardBoard(true);
+  if (cbSelected.length === 2) {
+    cbAnimating = true;
+    const [idx1, idx2] = cbSelected;
+    const res = await api({ action: 'playCardMove', roomId: cbRoomId, name: cbMyName, idx1, idx2 });
+    cbSelected = [];
+    cbAnimating = false;
+    if (!res.success) { alert(res.message); return; }
+    cbBoard = res.board;
+    cbLastMoveTs = res.lastMove.ts;
+    const myScore = cbMyPlayerNum === 1 ? res.score1 : res.score2;
+    const oppScore = cbMyPlayerNum === 1 ? res.score2 : res.score1;
+    document.getElementById('cb-score-me').textContent = myScore;
+    document.getElementById('cb-score-opponent').textContent = oppScore;
+    const myTurn = Number(res.turn) === cbMyPlayerNum;
+    document.getElementById('cb-turn-indicator').textContent = myTurn ? '내 턴' : '상대 턴';
+    renderCardBoard(myTurn);
+    if (res.status === '종료') {
+      clearInterval(cbPollTimer);
+      showCardBattleResult(res.winner, myScore, oppScore);
+    }
+  }
+}
+
+async function animateCardMove(move) {
+  // 상대가 뒤집은 카드를 잠깐 보여줬다가 틀렸으면 다시 덮기 (연출용, 실제 판정은 서버에서 이미 완료됨)
+  cbAnimating = true;
+  cbSelected = [move.idx1, move.idx2];
+  renderCardBoard(false);
+  if (!move.matched) await new Promise(r => setTimeout(r, 900));
+  cbSelected = [];
+  cbAnimating = false;
+}
+
+function showCardBattleResult(winner, myScore, oppScore) {
+  document.getElementById('card-battle-play').style.display = 'none';
+  document.getElementById('card-battle-result').style.display = 'block';
+  const title = document.getElementById('cb-result-title');
+  if (winner === 'opponent_left') {
+    title.textContent = '상대가 나갔어요';
+  } else if (winner === '무승부') {
+    title.textContent = '무승부!';
+  } else if (winner === cbMyName) {
+    title.textContent = '승리! 🎉';
+  } else {
+    title.textContent = '패배 ㅠㅠ';
+  }
+  loadCardBattleRanking();
+}
+
+function closeCardBattleResult() {
+  document.getElementById('card-battle-overlay').style.display = 'none';
+  cbRoomId = null;
+}
+
+async function exitCardBattle() {
+  if (cbPollTimer) clearInterval(cbPollTimer);
+  if (cbRoomId) {
+    await api({ action: 'leaveCardGame', roomId: cbRoomId, name: cbMyName });
+  }
+  cbRoomId = null;
+  document.getElementById('card-battle-overlay').style.display = 'none';
+}
+
+async function loadCardBattleRanking() {
+  const res = await api({ action: 'getGameRanking', game: '동물카드대전' });
+  const list = document.getElementById('game-rank-list-cardbattle');
   if (!res.success || res.ranking.length === 0) {
     list.innerHTML = '<div class="empty-state">아직 진행 중인 미니게임이 없어요</div>';
     return;
@@ -1817,11 +1779,11 @@ async function loadDustRanking() {
     <div class="status-card" style="display:flex; align-items:center; gap:10px;">
       <div style="width:22px; text-align:center; font-size:14px; font-weight:700; color:#888;">${i + 1}</div>
       <span style="flex:1; font-size:15px; font-weight:500;">${r.name}</span>
-      <span style="font-size:13px; color:#888;">${((1000000 - r.score) / 1000).toFixed(2)}초</span>
+      <span style="font-size:13px; color:#888;">${r.score}점</span>
     </div>
   `).join('');
 }
- 
+
   function showMsg(id, msg, type) {
     const el = document.getElementById(id);
     el.textContent = msg;
