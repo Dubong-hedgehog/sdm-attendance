@@ -367,6 +367,9 @@
 </div>
 </div>
 <script src="config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.17.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.17.1/firebase-database-compat.js"></script>
 <script>
 let allActivities = [];
 let gameRankingLoaded = false;
@@ -376,6 +379,16 @@ let CURRENT_GEN = null;
 let SESSION = null;
 const IDLE_LIMIT_MS = 3 * 60 * 1000;
 let idleCheckTimer = null;
+/* ===== Firebase (동물카드대전 실시간용) ===== */
+firebase.initializeApp(FIREBASE_CONFIG);
+const fbAuth = firebase.auth();
+const fbDb = firebase.database();
+const fbAuthReady = new Promise((resolve) => {
+  const unsub = fbAuth.onAuthStateChanged(user => {
+    if (user) { unsub(); resolve(user); }
+  });
+  fbAuth.signInAnonymously().catch(err => console.error('Firebase 익명 로그인 실패', err));
+});
 
   async function api(body) {
     const res = await fetch(CONFIG.API_URL, {
@@ -1603,7 +1616,7 @@ async function loadAnimalRanking() {
   `).join('');
 }
 
-/* ===== 동물카드대전 (실시간 매칭 카드게임) ===== */
+/* ===== 동물카드대전 (Firebase Realtime Database 기반 실시간 매칭) ===== */
 const CARD_IMAGES = ['image/animal1.png','image/animal2.png','image/animal3.png','image/animal4.png','image/animal5.png','image/animal6.png','image/animal7.png','image/animal8.png'];
 let cbRoomId = null;
 let cbMyPlayerNum = null;
@@ -1611,13 +1624,20 @@ let cbMyName = '';
 let cbOpponentName = '';
 let cbBoard = [];
 let cbSelected = [];
-let cbLastMoveTs = 0;
-let cbPollTimer = null;
 let cbAnimating = false;
-let cbLastStatus = '';
-let cbPolling = false;
 let cbBoardInitialized = false;
-let cbStateVersion = 0;
+let cbRoomRef = null;
+let cbRoomListener = null;
+
+function shuffleCardBoard() {
+  const types = [1, 2, 3, 4, 5, 6, 7, 8];
+  let cards = types.concat(types);
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = cards[i]; cards[i] = cards[j]; cards[j] = tmp;
+  }
+  return cards.map(type => ({ type, matched: false }));
+}
 
 async function openCardBattle() {
   const gen = getMyPrimaryGeneration();
@@ -1631,106 +1651,155 @@ async function openCardBattle() {
   document.getElementById('card-battle-play').style.display = 'none';
   document.getElementById('card-battle-result').style.display = 'none';
 
-  const joinRes = await api({ action: 'joinCardGame', name, generation: gen });
-  if (!joinRes.success) {
-    alert(joinRes.message);
-    document.getElementById('card-battle-overlay').style.display = 'none';
-    return;
-  }
-  cbRoomId = joinRes.roomId;
-  cbMyPlayerNum = joinRes.myPlayerNum;
-
-  if (joinRes.status === 'matched') {
-    cbOpponentName = joinRes.opponent;
-    startCardBattlePolling();
-  } else {
-    pollCardBattleWaiting();
-  }
-}
-
-function pollCardBattleWaiting() {
-  if (cbPollTimer) clearInterval(cbPollTimer);
-  cbPollTimer = setInterval(async () => {
-    const res = await api({ action: 'getCardRoomState', roomId: cbRoomId });
-    if (!res.success) return;
-    if (res.status === '진행중') {
-      clearInterval(cbPollTimer);
-      cbOpponentName = cbMyPlayerNum === 1 ? res.player2 : res.player1;
-      startCardBattlePolling();
+  try {
+    await fbAuthReady;
+    const match = await findOrCreateCardRoom(name, gen);
+    cbRoomId = match.roomId;
+    cbMyPlayerNum = match.myPlayerNum;
+    cbRoomRef = fbDb.ref('cardRooms/' + cbRoomId);
+    if (match.status === 'matched') {
+      cbOpponentName = match.opponent;
+      startCardBattleListener();
+    } else {
+      cbRoomRef.onDisconnect().remove();
+      listenForMatch();
     }
-  }, 2000);
+  } catch (e) {
+    console.error(e);
+    alert('매칭 중 오류가 발생했습니다. 다시 시도해주세요.');
+    document.getElementById('card-battle-overlay').style.display = 'none';
+  }
 }
 
-function startCardBattlePolling() {
+// 대기중인 방이 있으면 합류, 없으면 새로 만듦 (cardWaiting/current 포인터를 트랜잭션으로 안전하게 처리)
+async function findOrCreateCardRoom(name, generation) {
+  const waitingRef = fbDb.ref('cardWaiting/current');
+  const myRoomId = 'C' + Date.now() + Math.floor(Math.random() * 1000);
+  let grabbedRoomId = null;
+
+  await waitingRef.transaction(current => {
+    if (current) { grabbedRoomId = current; return null; }
+    grabbedRoomId = null; return myRoomId;
+  });
+
+  if (grabbedRoomId) {
+    const snap = await fbDb.ref('cardRooms/' + grabbedRoomId).get();
+    const room = snap.val();
+    const stale = !room || room.status !== '대기' || (Date.now() - (room.createdAt || 0) > 10 * 60 * 1000);
+    if (stale) {
+      return await createWaitingRoom(myRoomId, name, generation);
+    }
+    const board = shuffleCardBoard();
+    await fbDb.ref('cardRooms/' + grabbedRoomId).update({
+      player2: name,
+      player2Gen: generation,
+      status: '진행중',
+      board,
+      turn: 1,
+      lastActionAt: firebase.database.ServerValue.TIMESTAMP
+    });
+    return { roomId: grabbedRoomId, myPlayerNum: 2, status: 'matched', opponent: room.player1 };
+  }
+  return await createWaitingRoom(myRoomId, name, generation);
+}
+
+async function createWaitingRoom(roomId, name, generation) {
+  await fbDb.ref('cardRooms/' + roomId).set({
+    status: '대기',
+    player1: name,
+    player1Gen: generation,
+    player2: '',
+    player2Gen: '',
+    board: null,
+    turn: 1,
+    score1: 0,
+    score2: 0,
+    lastMove: null,
+    winner: '',
+    createdAt: firebase.database.ServerValue.TIMESTAMP,
+    lastActionAt: firebase.database.ServerValue.TIMESTAMP
+  });
+  await fbDb.ref('cardWaiting/current').transaction(current => (current === null || current === undefined) ? roomId : current);
+  return { roomId, myPlayerNum: 1, status: 'waiting' };
+}
+
+function listenForMatch() {
+  cbRoomListener = cbRoomRef.on('value', snap => {
+    const room = snap.val();
+    if (room && room.status === '진행중') {
+      cbRoomRef.off('value', cbRoomListener);
+      cbOpponentName = cbMyPlayerNum === 1 ? room.player2 : room.player1;
+      startCardBattleListener();
+    }
+  });
+}
+
+function startCardBattleListener() {
   document.getElementById('card-battle-waiting').style.display = 'none';
   document.getElementById('card-battle-play').style.display = 'block';
   document.getElementById('cb-me').textContent = cbMyName;
   document.getElementById('cb-opponent').textContent = cbOpponentName;
-  cbLastMoveTs = 0;
-  cbLastStatus = '';
   cbSelected = [];
   cbBoardInitialized = false;
-  cbStateVersion = 0;
   document.getElementById('cb-board').innerHTML = '<div style="grid-column:1/-1; color:#fff; text-align:center; padding:20px; font-size:13px;">카드를 불러오는 중...</div>';
-  if (cbPollTimer) clearInterval(cbPollTimer);
   bgmAudio.currentTime = 0;
   bgmAudio.play();
-  cbPolling = true;
-  refreshCardBattleState();
+
+  // 상대가 연결 끊김/이탈하면 자동으로 내가 승자 처리되도록 등록
+  cbRoomRef.onDisconnect().cancel();
+  cbRoomRef.onDisconnect().update({ status: '종료', winner: cbOpponentName || 'opponent_left' });
+
+  let prevLastMoveTs = 0;
+  cbRoomListener = cbRoomRef.on('value', async snap => {
+    const room = snap.val();
+    if (!room) return;
+
+    if (Array.isArray(room.board) && room.board.length > 0) {
+      cbBoard = room.board;
+      if (!cbBoardInitialized) { initCardBoard(); cbBoardInitialized = true; }
+    }
+    const myScore = cbMyPlayerNum === 1 ? room.score1 : room.score2;
+    const oppScore = cbMyPlayerNum === 1 ? room.score2 : room.score1;
+    document.getElementById('cb-score-me').textContent = myScore || 0;
+    document.getElementById('cb-score-opponent').textContent = oppScore || 0;
+    const myTurn = Number(room.turn) === cbMyPlayerNum;
+    document.getElementById('cb-turn-indicator').textContent = myTurn ? '내 턴' : '상대 턴';
+
+    if (room.lastMove && room.lastMove.ts !== prevLastMoveTs) {
+      prevLastMoveTs = room.lastMove.ts;
+      if (room.lastMove.by !== cbMyPlayerNum) {
+        if (room.lastMove.matched) playItemSound(); else playHitSound();
+        await animateCardMove(room.lastMove);
+      }
+    }
+    renderCardBoard(myTurn);
+
+    if (room.status === '종료') {
+      cbRoomRef.off('value', cbRoomListener);
+      cbRoomRef.onDisconnect().cancel();
+      if (room.winner && room.winner !== '무승부' && room.winner !== 'opponent_left') {
+        await reportCardBattleResultOnce(room);
+      }
+      showCardBattleResult(room.winner, myScore || 0, oppScore || 0);
+    }
+  });
 }
 
-// 롱폴링: 서버가 변화가 생기거나 최대 6초가 지날 때까지 붙잡고 있다가 응답 → 받자마자 바로 다음 요청
-async function refreshCardBattleState() {
-  if (!cbRoomId || !cbPolling) return;
-  if (cbAnimating) { setTimeout(refreshCardBattleState, 200); return; }
-
-  const versionAtRequest = cbStateVersion;
-  let res;
+// 레이팅 반영을 정확히 한 번만 보내기 위한 서버측 플래그 방식 (누가 먼저 감지하든 안전)
+async function reportCardBattleResultOnce(room) {
   try {
-    res = await api({ action: 'getCardRoomState', roomId: cbRoomId, sinceMoveTs: cbLastMoveTs, sinceStatus: cbLastStatus });
-  } catch (e) {
-    setTimeout(refreshCardBattleState, 1000);
-    return;
-  }
-  if (!cbPolling) return;
-  if (!res.success) { setTimeout(refreshCardBattleState, 1000); return; }
-
-  // 이 응답을 기다리는 사이에 내가 직접 수를 둬서 상태가 이미 갱신됐다면, 그 응답은 내 예전 요청 기준이라 낡은 것 → 버리고 최신 기준으로 다시 조회
-  if (cbStateVersion !== versionAtRequest) {
-    refreshCardBattleState();
-    return;
-  }
-
-  cbLastStatus = res.status;
-  if (Array.isArray(res.board) && res.board.length > 0) {
-    cbBoard = res.board;
-    if (!cbBoardInitialized) { initCardBoard(); cbBoardInitialized = true; }
-  }
-  const myScore = cbMyPlayerNum === 1 ? res.score1 : res.score2;
-  const oppScore = cbMyPlayerNum === 1 ? res.score2 : res.score1;
-  document.getElementById('cb-score-me').textContent = myScore;
-  document.getElementById('cb-score-opponent').textContent = oppScore;
-  const myTurn = Number(res.turn) === cbMyPlayerNum;
-  document.getElementById('cb-turn-indicator').textContent = myTurn ? '내 턴' : '상대 턴';
-
-  if (res.lastMove && res.lastMove.ts !== cbLastMoveTs) {
-    cbLastMoveTs = res.lastMove.ts;
-    cbStateVersion++;
-    if (res.lastMove.matched) playItemSound(); else playHitSound();
-    await animateCardMove(res.lastMove);
-  }
-  renderCardBoard(myTurn);
-
-  if (res.status === '종료') {
-    cbPolling = false;
-    showCardBattleResult(res.winner, myScore, oppScore);
-    return;
-  }
-
-  refreshCardBattleState();
+    const flagRef = fbDb.ref('cardRooms/' + cbRoomId + '/eloReported');
+    const tx = await flagRef.transaction(current => current ? undefined : true);
+    if (!tx.committed) return;
+  } catch (e) { return; }
+  const loser = room.winner === room.player1 ? room.player2 : room.player1;
+  const winnerGen = room.winner === room.player1 ? room.player1Gen : room.player2Gen;
+  const loserGen = room.winner === room.player1 ? room.player2Gen : room.player1Gen;
+  try {
+    await api({ action: 'reportCardBattleResult', winner: room.winner, winnerGen, loser, loserGen });
+  } catch (e) { console.error('레이팅 반영 실패', e); }
 }
 
-// 카드 14장의 DOM을 한 번만 생성 (이후로는 상태만 갱신해서 트랜지션이 자연스럽게 걸리게 함)
 function initCardBoard() {
   const container = document.getElementById('cb-board');
   container.innerHTML = cbBoard.map((card, idx) => `
@@ -1742,7 +1811,7 @@ function initCardBoard() {
     </div>
   `).join('');
 }
- 
+
 function renderCardBoard(myTurn) {
   if (!Array.isArray(cbBoard) || cbBoard.length === 0) return;
   cbBoard.forEach((card, idx) => {
@@ -1752,50 +1821,81 @@ function renderCardBoard(myTurn) {
     const faceUp = card.matched || isSelected;
     el.classList.toggle('flipped', faceUp);
     el.classList.toggle('selected', isSelected && !card.matched);
-    const clickable = myTurn && !card.matched && !isSelected && cbSelected.length < 2;
+    const clickable = myTurn && !card.matched && !isSelected && cbSelected.length < 2 && !cbAnimating;
     el.style.cursor = clickable ? 'pointer' : 'default';
     el.onclick = clickable ? () => onCardBattleClick(idx) : null;
   });
 }
 
 async function onCardBattleClick(idx) {
-  if (cbSelected.includes(idx) || cbSelected.length >= 2) return;
+  if (cbAnimating || cbSelected.includes(idx) || cbSelected.length >= 2) return;
   cbSelected.push(idx);
   renderCardBoard(true);
   if (cbSelected.length === 2) {
     cbAnimating = true;
     const [idx1, idx2] = cbSelected;
-    const res = await api({ action: 'playCardMove', roomId: cbRoomId, name: cbMyName, idx1, idx2 });
     cbSelected = [];
+    const result = await playCardMoveFirebase(idx1, idx2);
     cbAnimating = false;
-    if (!res.success) { alert(res.message); return; }
-    cbBoard = res.board;
-    cbLastMoveTs = res.lastMove.ts;
-    cbLastStatus = res.status;
-    cbStateVersion++;
-    if (res.lastMove.matched) playItemSound(); else playHitSound();
-    const myScore = cbMyPlayerNum === 1 ? res.score1 : res.score2;
-    const oppScore = cbMyPlayerNum === 1 ? res.score2 : res.score1;
-    document.getElementById('cb-score-me').textContent = myScore;
-    document.getElementById('cb-score-opponent').textContent = oppScore;
-    const myTurn = Number(res.turn) === cbMyPlayerNum;
-    document.getElementById('cb-turn-indicator').textContent = myTurn ? '내 턴' : '상대 턴';
-    renderCardBoard(myTurn);
-    if (res.status === '종료') {
-      cbPolling = false;
-      showCardBattleResult(res.winner, myScore, oppScore);
+    if (!result.ok) {
+      alert(result.message);
+      renderCardBoard(true);
+      return;
     }
+    if (result.matched) playItemSound(); else playHitSound();
   }
 }
 
+async function playCardMoveFirebase(idx1, idx2) {
+  let outcome = { ok: false, message: '오류가 발생했습니다.' };
+  try {
+    const tx = await cbRoomRef.transaction(room => {
+      if (!room || room.status !== '진행중') { outcome = { ok: false, message: '진행 중인 게임이 아닙니다.' }; return; }
+      const myNum = cbMyName === room.player1 ? 1 : (cbMyName === room.player2 ? 2 : 0);
+      if (myNum === 0) { outcome = { ok: false, message: '참가자가 아닙니다.' }; return; }
+      if (Number(room.turn) !== myNum) { outcome = { ok: false, message: '상대 턴입니다.' }; return; }
+      const board = room.board;
+      if (idx1 === idx2 || !board[idx1] || !board[idx2] || board[idx1].matched || board[idx2].matched) {
+        outcome = { ok: false, message: '선택할 수 없는 카드입니다.' }; return;
+      }
+      const matched = board[idx1].type === board[idx2].type;
+      let nextTurn = myNum;
+      let score1 = room.score1 || 0, score2 = room.score2 || 0;
+      if (matched) {
+        board[idx1].matched = true; board[idx2].matched = true;
+        if (myNum === 1) score1++; else score2++;
+      } else {
+        nextTurn = myNum === 1 ? 2 : 1;
+      }
+      const allMatched = board.every(c => c.matched);
+      let status = '진행중', winner = room.winner || '';
+      if (allMatched) {
+        status = '종료';
+        if (score1 > score2) winner = room.player1;
+        else if (score2 > score1) winner = room.player2;
+        else winner = '무승부';
+      }
+      room.board = board;
+      room.turn = nextTurn;
+      room.score1 = score1;
+      room.score2 = score2;
+      room.lastMove = { idx1, idx2, matched, by: myNum, ts: Date.now() };
+      room.lastActionAt = Date.now();
+      room.status = status;
+      room.winner = winner;
+      outcome = { ok: true, matched };
+      return room;
+    });
+    if (!tx.committed && outcome.ok) outcome = { ok: false, message: '다시 시도해주세요.' };
+  } catch (e) { console.error(e); }
+  return outcome;
+}
+
 async function animateCardMove(move) {
-  // 상대가 뒤집은 카드를 잠깐 보여줬다가 틀렸으면 다시 덮기 (부드러운 플립 트랜지션, 실제 판정은 서버에서 이미 완료됨)
-  cbAnimating = true;
   cbSelected = [move.idx1, move.idx2];
   renderCardBoard(false);
   if (!move.matched) await new Promise(r => setTimeout(r, 1100));
   cbSelected = [];
-  cbAnimating = false;
 }
 
 function showCardBattleResult(winner, myScore, oppScore) {
@@ -1819,17 +1919,32 @@ function showCardBattleResult(winner, myScore, oppScore) {
 function closeCardBattleResult() {
   document.getElementById('card-battle-overlay').style.display = 'none';
   cbRoomId = null;
+  cbRoomRef = null;
 }
 
 async function exitCardBattle() {
-  cbPolling = false;
-  if (cbPollTimer) clearInterval(cbPollTimer);
   bgmAudio.pause();
-  if (cbRoomId) {
-    await api({ action: 'leaveCardGame', roomId: cbRoomId, name: cbMyName });
+  document.getElementById('card-battle-overlay').style.display = 'none';
+  if (cbRoomRef && cbRoomListener) cbRoomRef.off('value', cbRoomListener);
+  if (cbRoomRef) {
+    try {
+      cbRoomRef.onDisconnect().cancel();
+      const snap = await cbRoomRef.get();
+      const room = snap.val();
+      if (room) {
+        if (room.status === '대기') {
+          await cbRoomRef.remove();
+          await fbDb.ref('cardWaiting/current').transaction(current => current === cbRoomId ? null : current);
+        } else if (room.status === '진행중') {
+          const opponent = cbMyName === room.player1 ? room.player2 : room.player1;
+          await cbRoomRef.update({ status: '종료', winner: opponent || 'opponent_left' });
+        }
+      }
+    } catch (e) { console.error(e); }
   }
   cbRoomId = null;
-  document.getElementById('card-battle-overlay').style.display = 'none';
+  cbRoomRef = null;
+  cbRoomListener = null;
 }
 
 async function loadCardBattleRanking() {
