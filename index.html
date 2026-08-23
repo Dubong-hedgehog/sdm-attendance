@@ -406,6 +406,20 @@
 <script src="https://www.gstatic.com/firebasejs/12.17.1/firebase-database-compat.js"></script>
 <script>
 let allActivities = [];
+ /* ===== 연탄나르기 스프라이트 ===== */
+const COAL_SPRITE_PATHS = {
+  left: [1,2,3,4,5,6].map(i => `image/coal_left_${i}.png`),
+  right: [1,2,3,4,5,6].map(i => `image/coal_right_${i}.png`),
+  rock: [1,2,3,4,5,6].map(i => `image/rock_${i}.png`),
+  item: { star: 'image/item_star.png', mushroom: 'image/item_mushroom.png', shrink: 'image/item_shrink.png', grow: 'image/item_grow.png' }
+};
+const COAL_SPRITES = { left: [], right: [], rock: [], item: {} };
+(function preloadCoalSprites() {
+  COAL_SPRITE_PATHS.left.forEach((src, i) => { const im = new Image(); im.src = src; COAL_SPRITES.left[i] = im; });
+  COAL_SPRITE_PATHS.right.forEach((src, i) => { const im = new Image(); im.src = src; COAL_SPRITES.right[i] = im; });
+  COAL_SPRITE_PATHS.rock.forEach((src, i) => { const im = new Image(); im.src = src; COAL_SPRITES.rock[i] = im; });
+  Object.entries(COAL_SPRITE_PATHS.item).forEach(([key, src]) => { const im = new Image(); im.src = src; COAL_SPRITES.item[key] = im; });
+})();
 let gameRankingLoaded = false;
 let boardLoaded = false;
 let myLoaded = false;
