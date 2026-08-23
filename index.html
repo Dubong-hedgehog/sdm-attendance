@@ -791,6 +791,53 @@ function openGameEntry(gameName) {
   document.getElementById('game-entry-msg').textContent = '';
   document.getElementById('game-entry-modal').style.display = 'flex';
 }
+
+const GAME_HELP = {
+  '연탄나르기': {
+    title: '연탄나르기 게임설명',
+    html: `
+      <p><b>좌우 이동</b> — 화면을 기울이거나(기울기 센서), 화면을 드래그해서 캐릭터를 좌우로 움직여요.</p>
+      <p><b>목숨</b> — 🔥 3개로 시작. 위에서 떨어지는 돌맹이에 맞으면 1개씩 줄고, 다 잃으면 게임이 끝나요.</p>
+      <p><b>아이템</b></p>
+      <p>⭐ 무적의 별 — 2초간 돌맹이에 맞아도 목숨이 안 깎여요.<br>
+      🍄 버섯 — 캐릭터가 조금 커져요.<br>
+      🔽 파란 화살표 — 8초간 돌맹이가 작아져서 피하기 쉬워져요.<br>
+      🔼 빨간 화살표 — 8초간 돌맹이가 커져서 피하기 어려워져요. 조심하세요!</p>
+      <p>시간이 지날수록 돌맹이가 더 빠르고 자주 떨어져요.</p>
+    `
+  },
+  '플로깅 팡': {
+    title: '플로깅 팡 게임설명',
+    html: `
+      <p><b>조작</b> — 화면에 떠오르는 걸 손가락으로 톡톡 터치해요.</p>
+      <p><b>목숨</b> — ❤️ 3개로 시작. 쓰레기를 놓치거나 바다생물을 잘못 터치하면 1개씩 줄어요.</p>
+      <p>🍾🥫🛍️🥤🧴 쓰레기 — 터치하면 +10점<br>
+      🐟🦀🐢 바다생물 — 터치하지 마세요! 목숨이 줄어요.<br>
+      🦔 고슴도치 — 가끔 나오는 보너스, 터치하면 +50점</p>
+      <p>점수가 오를수록 한 번에 여러 개가 뜨고 사라지는 속도도 빨라져요.</p>
+    `
+  },
+  '동물퍼즐': {
+    title: '동물퍼즐 게임설명',
+    html: `
+      <p><b>조작</b> — 인접한 칸끼리 드래그해서 자리를 바꿔요. 3개 이상 같은 동물이 모이면 사라지고 점수를 얻어요.</p>
+      <p><b>제한시간</b> — 목숨이 아니라 60초 시간제한이에요. 시간 안에 최대한 점수를 모으세요.</p>
+      <p><b>콤보</b> — 4개를 맞추면 줄 전체를 지우는 특수타일이, 5개를 맞추면 같은 동물을 전부 지우는 폭탄 타일이 생겨요. 생긴 특수타일은 탭하면 바로 발동돼요.</p>
+    `
+  }
+};
+
+function openGameHelp() {
+  const info = GAME_HELP[currentGameName];
+  if (!info) return;
+  document.getElementById('game-help-title').textContent = info.title;
+  document.getElementById('game-help-content').innerHTML = info.html;
+  document.getElementById('game-help-modal').style.display = 'flex';
+}
+function closeGameHelp() {
+  document.getElementById('game-help-modal').style.display = 'none';
+}
+
 function closeGameEntry() {
   document.getElementById('game-entry-modal').style.display = 'none';
 }
