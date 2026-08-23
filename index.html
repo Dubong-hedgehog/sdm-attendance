@@ -107,6 +107,9 @@
   .cb-card.selected .cb-card-back { background:#378ADD; }
   .cb-card-front { background:#1D9E75; transform: rotateY(180deg); }
   .cb-card-front img { width:100%; height:100%; object-fit:cover; display:block; }
+  .cb-card { aspect-ratio:1; border-radius:8px; position:relative; perspective:600px; -webkit-perspective:600px; }
+  .cb-card-inner { width:100%; height:100%; position:relative; transform-style:preserve-3d; -webkit-transform-style:preserve-3d; transition: transform 0.45s ease; }
+  .cb-card-face { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; backface-visibility:hidden; -webkit-backface-visibility:hidden; border-radius:8px; overflow:hidden; font-size:20px; }
   /* 로그인 게이트 */
   .login-body { padding:24px 20px; }
 </style>
@@ -1624,6 +1627,7 @@ let cbMyName = '';
 let cbOpponentName = '';
 let cbBoard = [];
 let cbSelected = [];
+let cbLocalReveal = []; // 방금 내가 고른 카드 2장을 최소 시간 동안 강제로 앞면 유지시키는 용도
 let cbAnimating = false;
 let cbBoardInitialized = false;
 let cbRoomRef = null;
@@ -1817,7 +1821,7 @@ function renderCardBoard(myTurn) {
   cbBoard.forEach((card, idx) => {
     const el = document.getElementById(`cb-card-${idx}`);
     if (!el) return;
-    const isSelected = cbSelected.includes(idx);
+    const isSelected = cbSelected.includes(idx) || cbLocalReveal.includes(idx);
     const faceUp = card.matched || isSelected;
     el.classList.toggle('flipped', faceUp);
     el.classList.toggle('selected', isSelected && !card.matched);
@@ -1834,20 +1838,29 @@ async function onCardBattleClick(idx) {
   if (cbSelected.length === 2) {
     cbAnimating = true;
     const [idx1, idx2] = cbSelected;
-    // 서버 응답이 빨라도 최소 1초는 카드가 뭔지 보이도록 보장
-    const [result] = await Promise.all([
-      playCardMoveFirebase(idx1, idx2),
-      new Promise(r => setTimeout(r, 1000))
-    ]);
+    cbLocalReveal = [idx1, idx2]; // 결과가 오는 동안 + 온 뒤로도 최소 시간 동안 앞면 유지
     cbSelected = [];
-    cbAnimating = false;
-    if (!result.ok) {
-      alert(result.message);
-      renderCardBoard(true);
-      return;
+
+    let result;
+    try {
+      result = await playCardMoveFirebase(idx1, idx2);
+    } catch (e) {
+      console.error(e);
+      result = { ok: false, message: '오류가 발생했습니다.' };
     }
-    if (result.matched) playItemSound(); else playHitSound();
-    renderCardBoard(result.matched);
+
+    if (result.ok) {
+      try { if (result.matched) playItemSound(); else playHitSound(); }
+      catch (e) { console.error('효과음 재생 실패', e); } // 효과음이 실패해도 아래 복구 로직은 반드시 실행됨
+    }
+
+    // 결과가 뭐든 무조건 0.8초 뒤에 화면을 복구 (렌더링 스킵 방지)
+    setTimeout(() => {
+      cbLocalReveal = [];
+      cbAnimating = false;
+      if (!result.ok) alert(result.message);
+      renderCardBoard(!!result.matched);
+    }, 800);
   }
 }
 
