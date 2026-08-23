@@ -797,10 +797,10 @@ function launchCoalGame(generation, name) {
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
-  const ITEM_ICON = { star: '⭐', shrink: '🔽', mushroom: '🍄', grow: '🔼' };
-  let player = { x: W / 2, y: H - 60, w: 36, h: 36, scale: 1 };
+  let player = { x: W / 2, y: H - 60, w: 36, h: 36, scale: 1, facing: 'right', animFrame: 0, animTimer: 0, moving: false };
   let obstacles = [];
   let items = [];
+  let impacts = [];
   let score = 0;
   let lives = 3;
   let speedPxPerSec = 150;
@@ -880,44 +880,48 @@ function launchCoalGame(generation, name) {
     const s = player.scale;
     const blink = invincible && Math.floor(frameCount / 5) % 2 === 0;
     if (blink) return;
-    ctx.fillStyle = '#3B2E2A';
-    ctx.fillRect(player.x - 8 * s, player.y - 6 * s, 16 * s, 24 * s);
-    ctx.fillStyle = '#F5C6A0';
-    ctx.beginPath();
-    ctx.arc(player.x, player.y - 14 * s, 8 * s, 0, Math.PI * 2);
-    ctx.fill();
-    [{ dx: -10 * s, dy: -22 * s }, { dx: 0, dy: -26 * s }, { dx: 10 * s, dy: -22 * s }].forEach(p => {
-      ctx.fillStyle = '#222';
-      ctx.beginPath();
-      ctx.arc(player.x + p.dx, player.y + p.dy, 7 * s, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#555';
-      ctx.beginPath();
-      ctx.arc(player.x + p.dx, player.y + p.dy, 2.5 * s, 0, Math.PI * 2);
-      ctx.fill();
-    });
+    const frames = COAL_SPRITES[player.facing];
+    const img = frames && frames[player.animFrame];
+    const w = 46 * s, h = 46 * s;
+    if (img && img.complete && img.naturalWidth > 0) {
+      ctx.drawImage(img, player.x - w / 2, player.y - h * 0.72, w, h);
+    } else {
+      ctx.fillStyle = '#3B2E2A';
+      ctx.fillRect(player.x - 8 * s, player.y - 6 * s, 16 * s, 24 * s);
+    }
   }
   function tick() {
     if (!running) return;
     const now = performance.now();
     const dt = lastTickAt ? Math.min(0.2, (now - lastTickAt) / 1000) : 0.05;
     lastTickAt = now;
-
+    const prevX = player.x;
     if (Math.abs(tiltX) > 2) {
       player.x += tiltX * 0.8 * 60 * dt;
       const half = (player.w * player.scale) / 2;
       player.x = Math.max(half, Math.min(W - half, player.x));
     }
-
+    const moveDelta = player.x - prevX;
+    player.moving = Math.abs(moveDelta) > 0.3;
+    if (moveDelta > 0.3) player.facing = 'right';
+    else if (moveDelta < -0.3) player.facing = 'left';
+    if (player.moving) {
+      player.animTimer += dt;
+      if (player.animTimer > 0.09) {
+        player.animTimer = 0;
+        player.animFrame = (player.animFrame + 1) % 6;
+      }
+    } else {
+      player.animTimer = 0;
+      player.animFrame = 0;
+    }
     spawnTimerSec += dt;
     if (spawnTimerSec >= spawnGapSec) { spawnObstacle(); spawnTimerSec = 0; }
     itemTimerSec += dt;
     if (itemTimerSec >= itemGapSec) { spawnItem(); itemTimerSec = 0; itemGapSec = randItemIntervalSec(); }
-
     if (invincibleSec > 0) { invincibleSec -= dt; if (invincibleSec <= 0) { invincibleSec = 0; invincible = false; } }
     if (obstacleShrinkSec > 0) obstacleShrinkSec = Math.max(0, obstacleShrinkSec - dt);
     if (obstacleGrowSec > 0) obstacleGrowSec = Math.max(0, obstacleGrowSec - dt);
-
     const pw = player.w * player.scale, ph = player.h * player.scale;
     obstacles.forEach(o => { o.y += speedPxPerSec * dt; });
     obstacles = obstacles.filter(o => {
@@ -925,6 +929,7 @@ function launchCoalGame(generation, name) {
       const hit = Math.abs((o.x + o.w / 2) - player.x) < (o.w / 2 + pw / 2) &&
                   Math.abs((o.y + o.h / 2) - player.y) < (o.h / 2 + ph / 2);
       if (hit) {
+        impacts.push({ x: o.x + o.w / 2, y: o.y + o.h / 2, until: performance.now() + 250 });
         if (!invincible) {
           lives--;
           updateLives();
@@ -943,7 +948,6 @@ function launchCoalGame(generation, name) {
       if (hit) { applyItem(it.type); return false; }
       return true;
     });
-
     score += 60 * dt;
     document.getElementById('game-score').textContent = Math.floor(score / 10);
     speedPxPerSec = 150 + Math.floor(score / 300) * 30;
@@ -953,18 +957,41 @@ function launchCoalGame(generation, name) {
     if (!running) return;
     frameCount++;
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#7d98a1';
     obstacles.forEach(o => {
-      ctx.beginPath();
-      ctx.ellipse(o.x + o.w / 2, o.y + o.h / 2, o.w / 2, o.h / 2, 0, 0, Math.PI * 2);
-      ctx.fill();
+      const progress = Math.max(0, Math.min(1, o.y / H));
+      const frameIdx = Math.min(4, Math.floor(progress * 5));
+      const img = COAL_SPRITES.rock[frameIdx];
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, o.x, o.y, o.w, o.h);
+      } else {
+        ctx.fillStyle = '#7d98a1';
+        ctx.beginPath();
+        ctx.ellipse(o.x + o.w / 2, o.y + o.h / 2, o.w / 2, o.h / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
     });
-    ctx.font = '24px sans-serif';
-    items.forEach(it => { ctx.fillText(ITEM_ICON[it.type], it.x, it.y + 20); });
+    const nowTs = performance.now();
+    impacts = impacts.filter(im => im.until > nowTs);
+    impacts.forEach(im => {
+      const img = COAL_SPRITES.rock[5];
+      if (img && img.complete && img.naturalWidth > 0) {
+        const s = 50;
+        ctx.drawImage(img, im.x - s / 2, im.y - s / 2, s, s);
+      }
+    });
+    items.forEach(it => {
+      const img = COAL_SPRITES.item[it.type];
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, it.x, it.y, it.w, it.w);
+      } else {
+        ctx.font = '24px sans-serif';
+        ctx.fillText('❓', it.x, it.y + 20);
+      }
+    });
     drawPlayer();
     if (running) requestAnimationFrame(loop);
   }
-function runCountdown(callback) {
+  function runCountdown(callback) {
     const steps = ['3', '2', '1', 'GO'];
     const stepDelay = [1000, 1000, 1000, 500];
     let i = 0;
@@ -988,7 +1015,7 @@ function runCountdown(callback) {
     }
     showStep();
   }
-async function endGame() {
+  async function endGame() {
     running = false;
     if (tickInterval) clearInterval(tickInterval);
     bgmAudio.pause();
