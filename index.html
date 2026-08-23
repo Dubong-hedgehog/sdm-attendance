@@ -1834,10 +1834,10 @@ async function onCardBattleClick(idx) {
   if (cbSelected.length === 2) {
     cbAnimating = true;
     const [idx1, idx2] = cbSelected;
-    // 서버 응답이 빨라도 최소 0.8초는 카드가 뭔지 보이도록 보장
+    // 서버 응답이 빨라도 최소 1초는 카드가 뭔지 보이도록 보장
     const [result] = await Promise.all([
       playCardMoveFirebase(idx1, idx2),
-      new Promise(r => setTimeout(r, 800))
+      new Promise(r => setTimeout(r, 1000))
     ]);
     cbSelected = [];
     cbAnimating = false;
