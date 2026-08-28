@@ -77,6 +77,46 @@
   .info-row span:last-child { font-weight: 600; color: #222; }
   /* 안내 박스 */
   .notice-box { background: #FFFBEB; border: 1.5px solid #FDE68A; border-radius: 14px; padding: 12px 14px; margin-top: 12px; font-size: 13px; color: #92400E; display: none; }
+ .guide-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 999;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #1D9E75;
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.guide-fab:active { transform: scale(0.95); }
+
+.guide-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 14px 0;
+}
+.guide-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ddd;
+}
+.guide-dot.active { background: #1D9E75; }
+
+.guide-nav-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
   /* 마이페이지 카드 */
   .status-card { border: 1.5px solid #f0f0f0; border-radius: 16px; padding: 14px 16px; margin-bottom: 10px; transition: border 0.2s; box-shadow: 0 6px 16px rgba(20,60,45,0.05); }
   .status-card-title { font-size: 14px; font-weight: 700; color: #222; margin-bottom: 4px; }
@@ -115,6 +155,21 @@
 </style>
 </head>
 <body>
+<!-- 이용가이드 버튼 -->
+<button class="guide-fab" onclick="openGuide()" title="플랫폼 이용가이드">📖</button>
+
+<!-- 이용가이드 -->
+<div id="guide-modal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-width:420px;">
+    <span class="modal-close" onclick="closeGuide()">&times;</span>
+    <div id="guide-slides"></div>
+    <div class="guide-dots" id="guide-dots"></div>
+    <div class="guide-nav-row">
+      <button class="btn-gray" id="guide-prev-btn" onclick="guidePrev()">이전</button>
+      <button class="btn-green" id="guide-next-btn" onclick="guideNext()">다음</button>
+    </div>
+  </div>
+</div>
 <script>
 (function() {
   window.__debugLogs = [];
@@ -826,6 +881,58 @@ const GAME_HELP = {
     `
   }
 };
+
+let guideIdx = 0;
+
+const GUIDE_SLIDES = [
+  { title: '환영합니다! 👋', body: 'SDM 대원 사이트 사용법을 간단히 안내해드릴게요.<br>몇 장만 넘기면 끝나요!' },
+  { title: '로그인', body: '<b>마이페이지</b>에서 이름과 전화번호 뒤 4자리를 입력하면 로그인돼요. 별도 회원가입은 필요 없어요.' },
+  { title: '출석체크', body: '활동 당일 <b>출석체크</b> 메뉴에서 이름과 전화번호 뒤 4자리를 입력하면 출석이 기록돼요.' },
+  { title: '마이페이지', body: '내가 참여한 활동 이력과 개근·봉사 현황을 확인할 수 있어요. 여러 기수에 참여했다면 기수별로 모아서 보여줘요.' },
+  { title: '소셜링 게시판', body: '자유롭게 글을 남기고 소셜링 신청도 할 수 있는 공간이에요.' },
+  { title: '미니게임', body: '동물카드대전, 연탄나르기 같은 미니게임도 즐길 수 있어요. 각 게임 안 <b>게임설명</b> 버튼을 누르면 자세한 방법을 볼 수 있어요.' },
+  { title: '준비 끝! 🎉', body: '더 궁금한 점은 운영진에게 언제든 물어봐주세요. 즐거운 활동 되세요!' }
+];
+
+function openGuide() {
+  guideIdx = 0;
+  renderGuide();
+  document.getElementById('guide-modal').style.display = 'flex';
+}
+
+function closeGuide() {
+  document.getElementById('guide-modal').style.display = 'none';
+}
+
+function renderGuide() {
+  const s = GUIDE_SLIDES[guideIdx];
+  document.getElementById('guide-slides').innerHTML = `
+    <h3 style="color:#1D9E75;">${s.title}</h3>
+    <p style="line-height:1.6;">${s.body}</p>
+    <div style="text-align:center; color:#999; font-size:13px; margin-top:8px;">${guideIdx + 1} / ${GUIDE_SLIDES.length}</div>
+  `;
+  document.getElementById('guide-dots').innerHTML = GUIDE_SLIDES.map((_, i) =>
+    `<span class="guide-dot${i === guideIdx ? ' active' : ''}"></span>`
+  ).join('');
+
+  const prevBtn = document.getElementById('guide-prev-btn');
+  const nextBtn = document.getElementById('guide-next-btn');
+  prevBtn.style.visibility = guideIdx === 0 ? 'hidden' : 'visible';
+  nextBtn.textContent = guideIdx === GUIDE_SLIDES.length - 1 ? '확인' : '다음';
+}
+
+function guidePrev() {
+  if (guideIdx > 0) { guideIdx--; renderGuide(); }
+}
+
+function guideNext() {
+  if (guideIdx < GUIDE_SLIDES.length - 1) {
+    guideIdx++;
+    renderGuide();
+  } else {
+    closeGuide();
+  }
+}
 
 function openGameHelp() {
   const info = GAME_HELP[currentGameName];
