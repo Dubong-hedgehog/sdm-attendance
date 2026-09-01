@@ -80,6 +80,10 @@
       <h1 style="margin:0;" id="admin-header-title">SDM 운영진</h1>
       <button onclick="doLogout()" class="logout-btn">로그아웃</button>
     </div>
+    <div id="admin-gen-switch-wrap" style="display:none; margin-top:10px; position:relative; z-index:1;">
+      <select id="admin-gen-switch-select" onchange="onAdminGenSwitch()" style="padding:6px 12px; border-radius:999px; border:none; font-size:12px; font-weight:700; color:#1D9E75; background:#fff; cursor:pointer;">
+      </select>
+    </div>
   </div>
   <div class="card">
 <div class="tabs">
@@ -209,9 +213,8 @@ function showDenied(msg) {
   document.getElementById('admin-section').style.display = 'none';
 }
 async function initAdmin() {
-  const gen = getQueryParam('gen');
   const saved = localStorage.getItem('sdm_session');
-  if (!gen || !saved) {
+  if (!saved) {
     showDenied('대원페이지에서 먼저 로그인 후 접속해주세요.');
     return;
   }
@@ -221,6 +224,14 @@ async function initAdmin() {
     showDenied('대원페이지에서 먼저 로그인 후 접속해주세요.');
     return;
   }
+  const adminGens = (session.generations || []).filter(g => g.isAdmin).map(g => String(g.generation));
+  if (adminGens.length === 0) {
+    showDenied('운영진 권한이 없습니다.');
+    return;
+  }
+  const sortedGens = adminGens.slice().sort((a, b) => Number(b) - Number(a));
+  const urlGen = getQueryParam('gen');
+  const gen = (urlGen && adminGens.includes(urlGen)) ? urlGen : sortedGens[0];
   const res = await api({ action: 'verifyAdminAccess', name: session.name, phone4: session.phone4, generation: gen });
   if (!res.success) {
     showDenied(res.message || '운영진 권한이 없습니다.');
@@ -228,10 +239,23 @@ async function initAdmin() {
   }
   currentGen = gen;
   adminName = session.name;
+  renderAdminGenSelect(sortedGens);
   document.getElementById('admin-header-title').textContent = currentGen + '기 SDM 운영진 (' + adminName + ')';
   document.getElementById('denied-section').style.display = 'none';
   document.getElementById('admin-section').style.display = 'block';
   await loadAll();
+}
+function renderAdminGenSelect(gens) {
+  const wrap = document.getElementById('admin-gen-switch-wrap');
+  if (gens.length <= 1) { wrap.style.display = 'none'; return; }
+  const select = document.getElementById('admin-gen-switch-select');
+  select.innerHTML = gens.map(g => `<option value="${g}" ${g === currentGen ? 'selected' : ''}>${g}기</option>`).join('');
+  wrap.style.display = 'block';
+}
+function onAdminGenSwitch() {
+  const gen = document.getElementById('admin-gen-switch-select').value;
+  if (gen === currentGen) return;
+  location.href = 'admin.html?gen=' + encodeURIComponent(gen);
 }
 function doLogout() {
   localStorage.removeItem('sdm_session');
