@@ -442,7 +442,7 @@ async function loadInventoryLog() {
   list.innerHTML = res.logs.slice(0, 30).map(l => `
     <div class="list-item">
       <div class="list-item-title">${l['품목명']} <span class="badge ${l['구분']==='입고' ? 'badge-green' : 'badge-red'}">${l['구분']} ${l['수량']}</span></div>
-      <div class="list-item-sub">${l['수령반납자']} · 처리: ${l['처리운영진'] || '-'} · ${String(l['시간']).substring(0,16)}</div>
+      <div class="list-item-sub">${l['반납자']} · 확인: ${l['확인자'] || '-'} · ${String(l['시간']).substring(0,16)}</div>
       ${l['메모'] ? `<div class="list-item-sub">${l['메모']}</div>` : ''}
     </div>
   `).join('');
