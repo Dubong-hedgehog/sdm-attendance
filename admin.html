@@ -334,6 +334,7 @@ async function loadAdminBoardList() {
 }
 
 let allInventoryItems = [];
+let allInventoryLogs = [];
 
 async function loadInventory() {
   const res = await api({ action: 'getInventoryItems' });
@@ -348,10 +349,10 @@ async function loadInventory() {
 function renderInventoryList() {
   const list = document.getElementById('inventory-list');
   if (allInventoryItems.length === 0) { list.innerHTML = '<div class="empty">등록된 품목이 없어요</div>'; return; }
-  list.innerHTML = allInventoryItems.map(it => `
+  list.innerHTML = allInventoryItems.map((it, i) => `
     <div class="list-item">
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div class="list-item-title">${it['품목명']}</div>
+        <div class="list-item-title" style="cursor:pointer; color:#1D9E75; text-decoration:underline;" onclick="toggleItemHistory(${i})">${it['품목명']}</div>
         <div style="display:flex; align-items:center; gap:6px;">
           <button class="btn-sm btn-gray" style="width:28px; padding:4px 0;" onclick="quickAdjustInventory('${it['품목명']}', -1)">－</button>
           <span class="badge badge-green" style="min-width:44px; text-align:center;">${it['현재수량']}${it['단위'] || ''}</span>
@@ -362,8 +363,27 @@ function renderInventoryList() {
       <div class="btn-row" style="margin-top:8px;">
         <button class="btn-sm btn-red" onclick="deleteInventoryItemWeb('${it['품목명']}')">품목 삭제</button>
       </div>
+      <div id="inv-history-${i}" style="display:none; margin-top:10px; border-top:1px solid #eee; padding-top:10px;"></div>
     </div>
   `).join('');
+}
+
+function toggleItemHistory(idx) {
+  const container = document.getElementById(`inv-history-${idx}`);
+  if (!container) return;
+  const isOpen = container.style.display === 'block';
+  if (isOpen) { container.style.display = 'none'; return; }
+  const item = allInventoryItems[idx];
+  const itemLogs = allInventoryLogs.filter(l => l['품목명'] === item['품목명']).slice(0, 3);
+  container.innerHTML = itemLogs.length === 0
+    ? '<div style="font-size:13px; color:#aaa;">아직 입출고 기록이 없어요</div>'
+    : itemLogs.map(l => `
+        <div style="font-size:12px; color:#666; padding:4px 0; border-bottom:1px solid #f5f5f5;">
+          <span class="badge ${l['구분']==='입고' ? 'badge-green' : 'badge-red'}" style="margin-right:6px;">${l['구분']} ${l['수량']}</span>
+          ${l['반납자']} · ${String(l['시간']).substring(0,16)}
+        </div>
+      `).join('');
+  container.style.display = 'block';
 }
 
 async function quickAdjustInventory(name, delta) {
@@ -386,7 +406,8 @@ function populateInventorySelect() {
   const sel = document.getElementById('inv-tx-item');
   sel.innerHTML = '<option value="">품목 선택</option>';
   allInventoryItems.forEach(it => {
-    sel.innerHTML += `<option value="${it['품목명']}">${it['품목명']} (현재 ${it['현재수량']}${it['단위'] || ''})</option>`;
+    const noteLabel = it['비고'] ? ` - ${it['비고']}` : '';
+    sel.innerHTML += `<option value="${it['품목명']}">${it['품목명']}${noteLabel} (현재 ${it['현재수량']}${it['단위'] || ''})</option>`;
   });
 }
 
@@ -437,9 +458,10 @@ async function deleteInventoryItemWeb(name) {
 
 async function loadInventoryLog() {
   const res = await api({ action: 'getInventoryLog' });
+  allInventoryLogs = res.success ? res.logs : [];
   const list = document.getElementById('inventory-log');
-  if (!res.success || res.logs.length === 0) { list.innerHTML = '<div class="empty">기록이 없어요</div>'; return; }
-  list.innerHTML = res.logs.slice(0, 30).map(l => `
+  if (allInventoryLogs.length === 0) { list.innerHTML = '<div class="empty">기록이 없어요</div>'; return; }
+  list.innerHTML = allInventoryLogs.slice(0, 30).map(l => `
     <div class="list-item">
       <div class="list-item-title">${l['품목명']} <span class="badge ${l['구분']==='입고' ? 'badge-green' : 'badge-red'}">${l['구분']} ${l['수량']}</span></div>
       <div class="list-item-sub">${l['반납자']} · 확인: ${l['확인자'] || '-'} · ${String(l['시간']).substring(0,16)}</div>
