@@ -28,7 +28,7 @@
   .btn-blue { background: #378ADD; color: #fff; }
   .btn-gray { background: #888; color: #fff; }
   .btn-outline { background: #fff; color: #1D9E75; border: 1px solid #1D9E75; }
-  .tabs { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 600px; display: grid; grid-template-columns: repeat(5, 1fr); background: #fff; border-top: 1px solid #eee; border-radius: 22px 22px 0 0; padding: 8px 4px calc(8px + env(safe-area-inset-bottom)); box-shadow: 0 -10px 24px rgba(0,0,0,0.08); z-index: 50; }
+  .tabs { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 600px; display: grid; grid-template-columns: repeat(6, 1fr); background: #fff; border-top: 1px solid #eee; border-radius: 22px 22px 0 0; padding: 8px 4px calc(8px + env(safe-area-inset-bottom)); box-shadow: 0 -10px 24px rgba(0,0,0,0.08); z-index: 50; }
   .tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px 2px; text-align: center; color: #aaa; cursor: pointer; white-space: nowrap; min-width: 0; }
   .tab-icon { font-size: 17px; line-height: 1; }
   .tab-label { font-size: 9px; font-weight: 600; }
@@ -92,6 +92,7 @@
       <div class="tab" onclick="switchTab('activity')"><span class="tab-icon">📅</span><span class="tab-label">활동관리</span></div>
       <div class="tab" onclick="switchTab('payment')"><span class="tab-icon">💳</span><span class="tab-label">납부관리</span></div>
       <div class="tab" onclick="switchTab('board')"><span class="tab-icon">💬</span><span class="tab-label">소셜링 신청</span></div>
+      <div class="tab" onclick="switchTab('inventory')"><span class="tab-icon">📦</span><span class="tab-label">재고관리</span></div>
     </div>
     <!-- 대시보드 -->
     <div class="section active" id="section-dashboard">
@@ -185,6 +186,45 @@
       <h2>소셜링 관리</h2>
       <div id="admin-board-list"></div>
     </div>
+   <!-- 재고관리 -->
+    <div class="section" id="section-inventory">
+      <h2>현재 재고</h2>
+      <div id="inventory-list"></div>
+      <hr class="divider">
+      <h2>입고 / 출고 처리</h2>
+      <label>품목 선택</label>
+      <div class="select-wrap">
+        <select id="inv-tx-item"></select>
+      </div>
+      <label>구분</label>
+      <div class="select-wrap">
+        <select id="inv-tx-type">
+          <option value="입고">입고 (재고 늘리기)</option>
+          <option value="출고">출고 (재고 가져가기)</option>
+        </select>
+      </div>
+  <label>수량</label>
+  <input type="text" id="inv-tx-qty" placeholder="예: 5" inputmode="numeric">
+  <label>수령/반납자 (여러 명이면 쉼표로 구분)</label>
+  <input type="text" id="inv-tx-person" placeholder="예: 홍길동, 김철수">
+  <label>메모 (선택)</label>
+  <input type="text" id="inv-tx-memo" placeholder="예: 9월 정기활동용">
+  <button class="btn" onclick="submitInventoryTx()">처리하기</button>
+  <div class="msg" id="inv-tx-msg"></div>
+  <hr class="divider">
+  <h2>새 품목 추가</h2>
+  <label>품목명</label>
+  <input type="text" id="inv-new-name" placeholder="예: 목장갑">
+  <label>단위</label>
+  <input type="text" id="inv-new-unit" placeholder="예: 개, 박스, 롤">
+  <label>비고 (보관 위치 등 — 나중에 장소 바뀌면 여기서 바로 수정)</label>
+  <input type="text" id="inv-new-note" placeholder="예: 총무 집 보관">
+  <button class="btn" onclick="addInventoryItemWeb()">품목 추가</button>
+  <div class="msg" id="inv-new-msg"></div>
+  <hr class="divider">
+  <h2>최근 입출고 기록</h2>
+  <div id="inventory-log"></div>
+</div>
   </div>
 </div>
 <script src="/config.js"></script>
@@ -266,6 +306,7 @@ async function loadAll() {
   await loadMembers();
   loadDashboard();
   loadAdminBoardList();
+  loadInventory();
 }
 async function loadAdminBoardList() {
   const list = document.getElementById('admin-board-list');
@@ -291,6 +332,102 @@ async function loadAdminBoardList() {
     </div>
   `).join('');
 }
+
+let allInventoryItems = [];
+
+async function loadInventory() {
+  const res = await api({ action: 'getInventoryItems' });
+  if (res.success) {
+    allInventoryItems = res.items;
+    renderInventoryList();
+    populateInventorySelect();
+  }
+  loadInventoryLog();
+}
+
+function renderInventoryList() {
+  const list = document.getElementById('inventory-list');
+  if (allInventoryItems.length === 0) { list.innerHTML = '<div class="empty">등록된 품목이 없어요</div>'; return; }
+  list.innerHTML = allInventoryItems.map(it => `
+    <div class="list-item">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="list-item-title">${it['품목명']}</div>
+        <span class="badge badge-green">${it['현재수량']}${it['단위'] || ''}</span>
+      </div>
+      ${it['비고'] ? `<div class="list-item-sub">${it['비고']}</div>` : ''}
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn-sm btn-red" onclick="deleteInventoryItemWeb('${it['품목명']}')">품목 삭제</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function populateInventorySelect() {
+  const sel = document.getElementById('inv-tx-item');
+  sel.innerHTML = '<option value="">품목 선택</option>';
+  allInventoryItems.forEach(it => {
+    sel.innerHTML += `<option value="${it['품목명']}">${it['품목명']} (현재 ${it['현재수량']}${it['단위'] || ''})</option>`;
+  });
+}
+
+async function submitInventoryTx() {
+  const itemName = document.getElementById('inv-tx-item').value;
+  const type = document.getElementById('inv-tx-type').value;
+  const quantity = document.getElementById('inv-tx-qty').value.trim();
+  const person = document.getElementById('inv-tx-person').value.trim();
+  const memo = document.getElementById('inv-tx-memo').value.trim();
+  if (!itemName || !quantity || !person) {
+    showMsg('inv-tx-msg', '품목, 수량, 수령/반납자는 필수예요.', 'error'); return;
+  }
+  const res = await api({ action: 'recordInventoryTransaction', itemName, type, quantity, person, operator: adminName, memo });
+  if (res.success) {
+    showMsg('inv-tx-msg', `처리 완료! 현재 재고: ${res.newQty}`, 'success');
+    document.getElementById('inv-tx-qty').value = '';
+    document.getElementById('inv-tx-person').value = '';
+    document.getElementById('inv-tx-memo').value = '';
+    await loadInventory();
+  } else {
+    showMsg('inv-tx-msg', res.message, 'error');
+  }
+}
+
+async function addInventoryItemWeb() {
+  const name = document.getElementById('inv-new-name').value.trim();
+  const unit = document.getElementById('inv-new-unit').value.trim();
+  const note = document.getElementById('inv-new-note').value.trim();
+  if (!name) { showMsg('inv-new-msg', '품목명을 입력해주세요.', 'error'); return; }
+  const res = await api({ action: 'addInventoryItem', name, unit, note });
+  if (res.success) {
+    showMsg('inv-new-msg', '품목이 추가되었습니다.', 'success');
+    document.getElementById('inv-new-name').value = '';
+    document.getElementById('inv-new-unit').value = '';
+    document.getElementById('inv-new-note').value = '';
+    await loadInventory();
+  } else {
+    showMsg('inv-new-msg', res.message, 'error');
+  }
+}
+
+async function deleteInventoryItemWeb(name) {
+  if (!confirm(`'${name}' 품목을 삭제할까요? 그동안의 입출고 기록은 그대로 남아있어요.`)) return;
+  const res = await api({ action: 'deleteInventoryItem', name });
+  if (res.success) await loadInventory();
+  else alert(res.message);
+}
+
+async function loadInventoryLog() {
+  const res = await api({ action: 'getInventoryLog' });
+  const list = document.getElementById('inventory-log');
+  if (!res.success || res.logs.length === 0) { list.innerHTML = '<div class="empty">기록이 없어요</div>'; return; }
+  list.innerHTML = res.logs.slice(0, 30).map(l => `
+    <div class="list-item">
+      <div class="list-item-title">${l['품목명']} <span class="badge ${l['구분']==='입고' ? 'badge-green' : 'badge-red'}">${l['구분']} ${l['수량']}</span></div>
+      <div class="list-item-sub">${l['수령반납자']} · 처리: ${l['처리운영진'] || '-'} · ${String(l['시간']).substring(0,16)}</div>
+      ${l['메모'] ? `<div class="list-item-sub">${l['메모']}</div>` : ''}
+    </div>
+  `).join('');
+}
+
 async function applyAsCoHost(id) {
   const hostName = prompt('공동호스트로 등록할 운영진 이름을 입력해주세요.', adminName);
   if (!hostName) return;
@@ -689,10 +826,10 @@ function switchTab(tab) {
     t.classList.toggle('active',
       (i===0&&tab==='dashboard')||(i===1&&tab==='member')||
       (i===2&&tab==='activity')||(i===3&&tab==='payment')||
-      (i===4&&tab==='board')
+      (i===4&&tab==='board')||(i===5&&tab==='inventory')
     );
   });
-  ['dashboard','member','activity','payment','board'].forEach(t => {
+  ['dashboard','member','activity','payment','board','inventory'].forEach(t => {
     document.getElementById('section-'+t).classList.toggle('active', t===tab);
   });
 }
