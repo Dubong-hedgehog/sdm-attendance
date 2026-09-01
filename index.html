@@ -294,7 +294,19 @@
     <div class="msg" id="code-reset-msg"></div>
   </div>
 </div>
- 
+
+<div id="admin-gen-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:999; align-items:center; justify-content:center;">
+  <div class="card" style="max-width:320px; margin:0; padding:24px;">
+    <h2 style="margin-bottom:16px; font-size:18px;">관리할 기수 선택</h2>
+    <label>기수</label>
+    <div class="select-wrap">
+      <select id="admin-gen-select"></select>
+    </div>
+    <button class="btn" onclick="confirmAdminGenSelect()">이동하기</button>
+    <button class="btn btn-outline-red" style="margin-top:8px;" onclick="closeAdminGenModal()">취소</button>
+  </div>
+</div>
+
 <!-- 로그인 후 앱 전체 -->
 <div id="app-content" style="display:none;">
  <div class="app-header">
@@ -676,14 +688,26 @@ function renderAdminSwitch() {
 function switchToAdmin() {
   const adminGens = JSON.parse(document.getElementById('admin-switch-wrap').dataset.gens || '[]');
   if (adminGens.length === 0) return;
-  let gen = adminGens[0];
-  if (adminGens.length > 1) {
-    const picked = prompt('관리할 기수를 입력해주세요 (' + adminGens.join(', ') + ')', gen);
-    if (!picked) return;
-    if (!adminGens.includes(picked.trim())) { alert('해당 기수의 운영진이 아니에요.'); return; }
-    gen = picked.trim();
+  if (adminGens.length === 1) {
+    location.href = 'admin.html?gen=' + encodeURIComponent(adminGens[0]);
+    return;
   }
+  const select = document.getElementById('admin-gen-select');
+  select.innerHTML = adminGens
+    .slice()
+    .sort((a, b) => Number(b) - Number(a))
+    .map(gen => `<option value="${gen}">${gen}기</option>`)
+    .join('');
+  document.getElementById('admin-gen-modal').style.display = 'flex';
+}
+function confirmAdminGenSelect() {
+  const gen = document.getElementById('admin-gen-select').value;
+  if (!gen) return;
+  closeAdminGenModal();
   location.href = 'admin.html?gen=' + encodeURIComponent(gen);
+}
+function closeAdminGenModal() {
+  document.getElementById('admin-gen-modal').style.display = 'none';
 }
 function enterApp() {
   document.getElementById('login-gate').style.display = 'none';
