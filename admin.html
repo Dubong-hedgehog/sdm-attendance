@@ -352,7 +352,11 @@ function renderInventoryList() {
     <div class="list-item">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div class="list-item-title">${it['품목명']}</div>
-        <span class="badge badge-green">${it['현재수량']}${it['단위'] || ''}</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button class="btn-sm btn-gray" style="width:28px; padding:4px 0;" onclick="quickAdjustInventory('${it['품목명']}', -1)">－</button>
+          <span class="badge badge-green" style="min-width:44px; text-align:center;">${it['현재수량']}${it['단위'] || ''}</span>
+          <button class="btn-sm btn-green" style="width:28px; padding:4px 0;" onclick="quickAdjustInventory('${it['품목명']}', 1)">＋</button>
+        </div>
       </div>
       ${it['비고'] ? `<div class="list-item-sub">${it['비고']}</div>` : ''}
       <div class="btn-row" style="margin-top:8px;">
@@ -360,6 +364,22 @@ function renderInventoryList() {
       </div>
     </div>
   `).join('');
+}
+
+async function quickAdjustInventory(name, delta) {
+  const type = delta > 0 ? '입고' : '출고';
+  const person = prompt(type + ' — 가져온/가져간 사람 이름을 입력해주세요.');
+  if (!person || !person.trim()) return;
+  const res = await api({
+    action: 'recordInventoryTransaction',
+    itemName: name, type, quantity: Math.abs(delta),
+    person: person.trim(), operator: adminName, memo: ''
+  });
+  if (res.success) {
+    await loadInventory();
+  } else {
+    alert(res.message);
+  }
 }
 
 function populateInventorySelect() {
