@@ -218,37 +218,6 @@
     </div>
   </div>
 </div>
-<script>
-(function() {
-  window.__debugLogs = [];
-  function addLog(type, args) {
-    let msg;
-    try { msg = Array.from(args).map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '); }
-    catch(e) { msg = '(로그 변환 실패)'; }
-    window.__debugLogs.push('[' + type + '] ' + msg);
-    renderDebugLog();
-  }
-  function renderDebugLog() {
-    const el = document.getElementById('debug-log');
-    if (!el) return;
-    el.textContent = window.__debugLogs.slice(-50).join('\n');
-    el.scrollTop = el.scrollHeight;
-  }
-  const origLog = console.log, origErr = console.error, origWarn = console.warn;
-  console.log = function() { addLog('log', arguments); origLog.apply(console, arguments); };
-  console.error = function() { addLog('error', arguments); origErr.apply(console, arguments); };
-  console.warn = function() { addLog('warn', arguments); origWarn.apply(console, arguments); };
-  window.addEventListener('error', e => addLog('error', [e.message + ' @ ' + e.filename + ':' + e.lineno]));
-  window.addEventListener('unhandledrejection', e => addLog('error', ['unhandledrejection: ' + (e.reason && e.reason.message ? e.reason.message : e.reason)]));
-  document.addEventListener('DOMContentLoaded', function() {
-    const el = document.createElement('div');
-    el.id = 'debug-log';
-    el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:35vh;overflow-y:auto;background:rgba(0,0,0,0.9);color:#0f0;font-size:10px;font-family:monospace;padding:6px;z-index:99999;white-space:pre-wrap;';
-    document.body.appendChild(el);
-    renderDebugLog();
-  });
-})();
-</script>
 <div class="card">
 
 <!-- 로그인 게이트 -->
