@@ -1856,7 +1856,7 @@ async function loadGameRanking() {
   list.innerHTML = res.ranking.map((r, i) => `
     <div class="status-card" style="display:flex; align-items:center; gap:10px;">
       <div style="width:22px; text-align:center; font-size:14px; font-weight:700; color:#888;">${i + 1}</div>
-      <span style="flex:1; font-size:15px; font-weight:500;">${r.name}</span>
+      <span style="flex:1; font-size:15px; font-weight:500;">${esc(r.name)}</span>
       <span style="font-size:13px; color:#888;">${r.score}점</span>
     </div>
   `).join('');
@@ -1871,12 +1871,11 @@ async function loadFloggingRanking() {
   list.innerHTML = res.ranking.map((r, i) => `
     <div class="status-card" style="display:flex; align-items:center; gap:10px;">
       <div style="width:22px; text-align:center; font-size:14px; font-weight:700; color:#888;">${i + 1}</div>
-      <span style="flex:1; font-size:15px; font-weight:500;">${r.name}</span>
+      <span style="flex:1; font-size:15px; font-weight:500;">${esc(r.name)}</span>
       <span style="font-size:13px; color:#888;">${r.score}점</span>
     </div>
   `).join('');
 }
-
 async function loadAnimalRanking() {
   const res = await api({ action: 'getGameRanking', game: '동물퍼즐' });
   const list = document.getElementById('game-rank-list-animal');
@@ -1887,7 +1886,22 @@ async function loadAnimalRanking() {
   list.innerHTML = res.ranking.map((r, i) => `
     <div class="status-card" style="display:flex; align-items:center; gap:10px;">
       <div style="width:22px; text-align:center; font-size:14px; font-weight:700; color:#888;">${i + 1}</div>
-      <span style="flex:1; font-size:15px; font-weight:500;">${r.name}</span>
+      <span style="flex:1; font-size:15px; font-weight:500;">${esc(r.name)}</span>
+      <span style="font-size:13px; color:#888;">${r.score}점</span>
+    </div>
+  `).join('');
+}
+async function loadCardBattleRanking() {
+  const res = await api({ action: 'getGameRanking', game: '동물카드대전' });
+  const list = document.getElementById('game-rank-list-cardbattle');
+  if (!res.success || res.ranking.length === 0) {
+    list.innerHTML = '<div class="empty-state">아직 진행 중인 미니게임이 없어요</div>';
+    return;
+  }
+  list.innerHTML = res.ranking.map((r, i) => `
+    <div class="status-card" style="display:flex; align-items:center; gap:10px;">
+      <div style="width:22px; text-align:center; font-size:14px; font-weight:700; color:#888;">${i + 1}</div>
+      <span style="flex:1; font-size:15px; font-weight:500;">${esc(r.name)}</span>
       <span style="font-size:13px; color:#888;">${r.score}점</span>
     </div>
   `).join('');
@@ -2281,13 +2295,13 @@ function renderBoardList() {
     <div class="status-card">
       <div style="cursor:pointer;" onclick="toggleBoardDetail('${p.id}')">
         <div class="status-card-title">
-          ${p.title}
+          ${esc(p.title)}
           <span class="status-badge ${statusBadgeClass(p.status)}">${p.status}</span>
         </div>
-        <div style="font-size:12px; color:#888; margin-top:2px;">${p.author} · 최대 ${p.maxPeople}명(호스트 포함)${p.coHost ? ' · 공동호스트: ' + p.coHost : ''} · ${String(p.createdAt).substring(0,16)}</div>
+        <div style="font-size:12px; color:#888; margin-top:2px;">${esc(p.author)} · 최대 ${p.maxPeople}명(호스트 포함)${p.coHost ? ' · 공동호스트: ' + esc(p.coHost) : ''} · ${String(p.createdAt).substring(0,16)}</div>
       </div>
       <div id="board-detail-${p.id}" style="display:none; margin-top:10px; border-top:1px solid #f0f0f0; padding-top:10px;">
-        <p style="font-size:14px; color:#333; white-space:pre-wrap;">${p.content}</p>
+        <p style="font-size:14px; color:#333; white-space:pre-wrap;">${esc(p.content)}</p>
         <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; align-items:center;">
           <button class="btn-sm btn-gray" style="width:auto; margin:0; padding:6px 12px; border-radius:8px; border:none; background:#378ADD; color:#fff; cursor:pointer; font-size:12px;" onclick="toggleBoardEdit('${p.id}')">수정</button>
           <button class="btn-sm btn-gray" style="width:auto; margin:0; padding:6px 12px; border-radius:8px; border:none; background:#E24B4A; color:#fff; cursor:pointer; font-size:12px;" onclick="deleteBoardPostPrompt('${p.id}')">삭제</button>
@@ -2300,9 +2314,9 @@ function renderBoardList() {
         </div>
         <div id="board-edit-${p.id}" style="display:none; margin-top:10px;">
           <label>제목</label>
-          <input type="text" id="board-edit-title-${p.id}" value="${p.title}">
+          <input type="text" id="board-edit-title-${p.id}" value="${esc(p.title)}">
           <label>내용</label>
-          <textarea id="board-edit-content-${p.id}">${p.content}</textarea>
+          <textarea id="board-edit-content-${p.id}">${esc(p.content)}</textarea>
           <label>최대인원 (호스트 포함)</label>
           <input type="text" id="board-edit-maxpeople-${p.id}" value="${p.maxPeople}" inputmode="numeric">
           <label>비밀번호</label>
@@ -2532,7 +2546,7 @@ function renderMyPreList(items, name, phone4) {
   return items.map(r => `
     <div class="status-card">
       <div class="status-card-title">
-        ${r.activityName}
+        ${esc(r.activityName)}
         <span class="status-badge ${r.paid ? 'badge-green' : 'badge-red'}">
           ${r.paid ? '납부완료' : '미납'}
         </span>
@@ -2548,7 +2562,7 @@ function renderMyAttList(items) {
   return items.map(r => `
     <div class="status-card">
       <div class="status-card-title">
-        ${r.activityName}
+        ${esc(r.activityName)}
         <span class="status-badge badge-green">출석</span>
       </div>
       <div style="font-size:12px; color:#888; margin-top:2px;">${r.time}</div>
