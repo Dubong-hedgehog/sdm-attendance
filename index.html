@@ -278,6 +278,16 @@
 
 <!-- 로그인 후 앱 전체 -->
 <div id="app-content" style="display:none;">
+ <div id="notice-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.55); z-index:1002; align-items:center; justify-content:center; padding:20px;">
+  <div class="card" style="max-width:340px; margin:0; padding:24px; max-height:80vh; overflow-y:auto;">
+    <h2 style="margin-bottom:10px; font-size:18px;" id="notice-modal-title">공지사항</h2>
+    <div style="font-size:14px; color:#444; line-height:1.7; white-space:pre-wrap;" id="notice-modal-content"></div>
+    <div style="display:flex; gap:8px; margin-top:20px;">
+      <button class="btn-sm btn-gray" style="flex:1; padding:12px;" onclick="dismissNoticeForever()">다시는 보지 않기</button>
+      <button class="btn-sm btn-green" style="flex:1; padding:12px;" onclick="closeNoticeModal()">확인</button>
+    </div>
+  </div>
+</div>
  <div class="app-header">
     <div class="header-top">
       <div>
@@ -302,6 +312,10 @@
       <div class="map-container" id="map-container" style="display:none">
         <div id="kakao-map"></div>
       </div>
+      <div class="next-activity-card" id="notice-header-card" style="display:none; margin-top:10px; padding:12px 14px;">
+      <div class="next-activity-label">📢 공지사항</div>
+      <div id="notice-header-list"></div>
+    </div>
     </div>
   </div>
 <div class="tabs" id="main-tabs">
@@ -2611,11 +2625,66 @@ async function initGeneration() {
   const res = await api({ action: 'getCurrentGeneration' });
   CURRENT_GEN = res.success ? res.generation : '';
 }
+let allNotices = [];
+const NOTICE_DISMISS_KEY = 'sdm_dismissed_notices';
 async function initApp() {
   await initGeneration();
   loadActivities();
+  loadNotices();
 }
-bootstrap();
-</script>
-</body>
-</html>
+async function loadNotices() {
+  try {
+    const res = await api({ action: 'getNotices', generation: CURRENT_GEN });
+    allNotices = res.success ? res.notices : [];
+    renderNoticeHeaderList();
+    maybeShowNoticePopup();
+  } catch (e) { console.error('공지사항 로드 실패', e); }
+}
+function renderNoticeHeaderList() {
+  const card = document.getElementById('notice-header-card');
+  const list = document.getElementById('notice-header-list');
+  if (allNotices.length === 0) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  list.innerHTML = allNotices.slice(0, 3).map(n => `
+    <div style="font-size:13px; color:rgba(255,255,255,0.9); padding:4px 0; cursor:pointer;" onclick="openNoticeModal('${n.id}')">
+      ${n.pinned ? '📌 ' : ''}${esc(n.title)}
+    </div>
+  `).join('');
+}
+function getDismissedNoticeIds() {
+  try {
+    return JSON.parse(localStorage.getItem(NOTICE_DISMISS_KEY) || '[]');
+  } catch (e) { return []; }
+}
+function maybeShowNoticePopup() {
+  const pinned = allNotices.filter(n => n.pinned);
+  if (pinned.length === 0) return;
+  const target = pinned[0];
+  const dismissed = getDismissedNoticeIds();
+  if (dismissed.includes(target.id)) return;
+  openNoticeModal(target.id);
+}
+function openNoticeModal(id) {
+  const notice = allNotices.find(n => n.id === id);
+  if (!notice) return;
+  document.getElementById('notice-modal-title').textContent = notice.title;
+  document.getElementById('notice-modal-content').textContent = notice.content;
+  document.getElementById('notice-modal').dataset.noticeId = notice.id;
+  document.getElementById('notice-modal').style.display = 'flex';
+}
+function closeNoticeModal() {
+  document.getElementById('notice-modal').style.display = 'none';
+}
+function dismissNoticeForever() {
+  const id = document.getElementById('notice-modal').dataset.noticeId;
+  if (id) {
+    const dismissed = getDismissedNoticeIds();
+    if (!dismissed.includes(id)) {
+      dismissed.push(id);
+      try { localStorage.setItem(NOTICE_DISMISS_KEY, JSON.stringify(dismissed)); } catch (e) {}
+    }
+  }
+  closeNoticeModal();
+}
+
+ 
