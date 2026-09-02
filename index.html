@@ -343,6 +343,7 @@
           <option value="">활동을 선택해주세요</option>
         </select>
       </div>
+     <div id="pre-capacity-info" style="display:none; font-size:13px; color:#666; margin-top:8px; padding:8px 12px; background:#f7faf8; border-radius:10px;"></div>
       <div class="notice-box" id="pre-notice"></div>
       <div class="checkbox-group" id="pre-sub-group" style="display:none">
         <p>참여 항목 선택</p>
@@ -816,7 +817,8 @@ function renderNextActivityHeader(act) {
       group.style.display = 'block';
     }
   }
-function onPreActivityChange() {
+ 
+async function onPreActivityChange() {
     const activityId = document.getElementById('pre-activity').value;
     const noticeBox = document.getElementById('pre-notice');
     noticeBox.style.display = 'none';
@@ -825,6 +827,12 @@ function onPreActivityChange() {
     const preSubList = document.getElementById('pre-sub-list');
     preSubList.innerHTML = '';
     preSubGroup.style.display = 'none';
+    const capacityInfo = document.getElementById('pre-capacity-info');
+    capacityInfo.style.display = 'none';
+    capacityInfo.textContent = '';
+    const submitBtn = document.querySelector('#section-pre .btn');
+    submitBtn.disabled = false;
+    submitBtn.textContent = '신청 완료';
     if (!activityId) return;
     const act = allActivities.find(a => a['활동ID'] === activityId);
     if (!act) return;
@@ -862,7 +870,26 @@ function onPreActivityChange() {
       ).join('');
       noticeBox.style.display = 'block';
     }
+    // 마감시각 / 정원 현황
+    const deadline = act['마감일시'];
+    const isPastDeadline = deadline && new Date() > new Date(deadline);
+    const capacity = act['정원'] ? Number(act['정원']) : 0;
+    if (capacity > 0 || deadline) {
+      const res = await api({ action: 'getPreRegister', activityId });
+      const currentCount = res.success ? res.preRegister.length : 0;
+      const parts = [];
+      if (capacity > 0) parts.push(`현재 ${currentCount}/${capacity}명`);
+      if (deadline) parts.push(`마감: ${String(deadline).replace('T', ' ')}`);
+      capacityInfo.textContent = parts.join(' · ');
+      capacityInfo.style.display = 'block';
+      const isFull = capacity > 0 && currentCount >= capacity;
+      if (isPastDeadline || isFull) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = isPastDeadline ? '신청 마감되었습니다' : '정원이 마감되었습니다';
+      }
+    }
   }
+ 
 const TAB_ORDER = ['attend', 'pre', 'my', 'board', 'game'];
 function switchTab(tab) {
   document.querySelectorAll('#main-tabs > .tab').forEach((t, i) => {
