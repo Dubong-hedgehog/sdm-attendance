@@ -815,8 +815,6 @@ async function addDailyMember() {
   if (!name || !phone || !activityId) { showMsg('daily-msg', '모든 항목을 입력해주세요.', 'error'); return; }
   const res = await api({ action: 'addDailyMember', name, phone, activityId, generation: currentGen, paid });
   if (res.success) {
-    // 출석기록에도 추가
-    await api({ action: 'submitAttendance', name, phone4: phone.replace(/-/g,'').slice(-4), activityId, generation: currentGen, isDaily: true });
     showMsg('daily-msg', '일일대원이 추가되었습니다.', 'success');
     document.getElementById('daily-name').value = '';
     document.getElementById('daily-phone').value = '';
