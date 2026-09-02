@@ -96,6 +96,22 @@
     </div>
     <!-- 대시보드 -->
     <div class="section active" id="section-dashboard">
+     <div id="notice-admin-wrap">
+  <h2>공지사항 관리</h2>
+  <div id="notice-admin-list"></div>
+  <hr class="divider">
+  <label>제목</label>
+  <input type="text" id="notice-new-title" placeholder="공지 제목">
+  <label>내용</label>
+  <textarea id="notice-new-content" placeholder="공지 내용"></textarea>
+  <div class="toggle-wrap" style="margin-top:10px;">
+    <input type="checkbox" id="notice-new-pinned">
+    <label for="notice-new-pinned">상단 고정 (대원 앱에 팝업으로 표시)</label>
+  </div>
+  <button class="btn" onclick="addNoticeAdmin()">공지 등록</button>
+  <div class="msg" id="notice-new-msg"></div>
+</div>
+<hr class="divider">
       <div id="dashboard-content">
         <div class="empty">불러오는 중...</div>
       </div>
@@ -306,13 +322,89 @@ function doLogout() {
   localStorage.removeItem('sdm_session');
   location.href = 'index.html';
 }
+
+let allNotices = [];
 async function loadAll() {
   await loadActivities();
   await loadMembers();
   loadDashboard();
   loadAdminBoardList();
   loadInventory();
+  loadNoticesAdmin();
 }
+async function loadNoticesAdmin() {
+  const res = await api({ action: 'getNotices', generation: currentGen });
+  allNotices = res.success ? res.notices : [];
+  renderNoticesAdmin();
+}
+function renderNoticesAdmin() {
+  const list = document.getElementById('notice-admin-list');
+  if (allNotices.length === 0) { list.innerHTML = '<div class="empty">등록된 공지가 없어요</div>'; return; }
+  list.innerHTML = allNotices.map((n, i) => `
+    <div class="list-item">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="list-item-title" onclick="toggleNoticeEdit(${i})" style="cursor:pointer; color:#1D9E75; text-decoration:underline;">${esc(n.title)} ${n.pinned ? '<span class="badge badge-green">고정</span>' : ''}</div>
+      </div>
+      <div class="list-item-sub">${esc(n.author || '-')} · ${String(n.createdAt).substring(0,16)}</div>
+      <div class="btn-row">
+        <button class="btn-sm ${n.pinned ? 'btn-gray' : 'btn-green'}" onclick="toggleNoticePinned(${i})">${n.pinned ? '고정 해제' : '상단 고정'}</button>
+        <button class="btn-sm btn-red" onclick="deleteNoticeAdmin('${n.id}')">삭제</button>
+      </div>
+      <div id="notice-edit-${i}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+        <label style="margin-top:0;">제목</label>
+        <input type="text" id="notice-edit-title-${i}" value="${esc(n.title)}">
+        <label>내용</label>
+        <textarea id="notice-edit-content-${i}">${esc(n.content)}</textarea>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn-sm btn-green" style="flex:1; padding:10px;" onclick="saveNoticeEdit(${i})">저장</button>
+          <button class="btn-sm btn-gray" style="flex:1; padding:10px;" onclick="toggleNoticeEdit(${i})">취소</button>
+        </div>
+        <div class="msg" id="notice-edit-msg-${i}"></div>
+      </div>
+    </div>
+  `).join('');
+}
+function toggleNoticeEdit(idx) {
+  const el = document.getElementById(`notice-edit-${idx}`);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+async function saveNoticeEdit(idx) {
+  const n = allNotices[idx];
+  const title = document.getElementById(`notice-edit-title-${idx}`).value.trim();
+  const content = document.getElementById(`notice-edit-content-${idx}`).value.trim();
+  if (!title || !content) { showMsg(`notice-edit-msg-${idx}`, '제목과 내용을 입력해주세요.', 'error'); return; }
+  const res = await api({ action: 'updateNotice', id: n.id, title, content });
+  if (res.success) { await loadNoticesAdmin(); }
+  else { showMsg(`notice-edit-msg-${idx}`, res.message, 'error'); }
+}
+async function toggleNoticePinned(idx) {
+  const n = allNotices[idx];
+  const res = await api({ action: 'updateNotice', id: n.id, pinned: !n.pinned });
+  if (res.success) { await loadNoticesAdmin(); }
+  else { alert(res.message); }
+}
+async function deleteNoticeAdmin(id) {
+  if (!confirm('이 공지를 삭제할까요?')) return;
+  const res = await api({ action: 'deleteNotice', id });
+  if (res.success) { await loadNoticesAdmin(); }
+  else { alert(res.message); }
+}
+async function addNoticeAdmin() {
+  const title = document.getElementById('notice-new-title').value.trim();
+  const content = document.getElementById('notice-new-content').value.trim();
+  const pinned = document.getElementById('notice-new-pinned').checked;
+  if (!title || !content) { showMsg('notice-new-msg', '제목과 내용을 입력해주세요.', 'error'); return; }
+  const res = await api({ action: 'addNotice', generation: currentGen, title, content, author: adminName, pinned });
+  if (res.success) {
+    showMsg('notice-new-msg', '공지사항이 등록되었습니다.', 'success');
+    document.getElementById('notice-new-title').value = '';
+    document.getElementById('notice-new-content').value = '';
+    document.getElementById('notice-new-pinned').checked = false;
+    await loadNoticesAdmin();
+  } else { showMsg('notice-new-msg', res.message, 'error'); }
+}
+
 async function loadAdminBoardList() {
   const list = document.getElementById('admin-board-list');
   list.innerHTML = '<div class="empty">불러오는 중...</div>';
