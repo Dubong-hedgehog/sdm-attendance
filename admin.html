@@ -319,9 +319,9 @@ async function loadAdminBoardList() {
   if (res.posts.length === 0) { list.innerHTML = '<div class="empty">등록된 게시글이 없어요</div>'; return; }
   list.innerHTML = res.posts.map(p => `
     <div class="list-item">
-      <div class="list-item-title">${p.title} <span class="badge ${p.status==='매칭완료' ? 'badge-gray' : p.status==='소셜링 취소' ? 'badge-red' : 'badge-green'}">${p.status}</span></div>
-      <div class="list-item-sub">${p.author} · 최대 ${p.maxPeople}명(호스트 포함)${p.coHost ? ' · 공동호스트: ' + p.coHost : ''} · ${String(p.createdAt).substring(0,16)}</div>
-      <div class="list-item-sub" style="white-space:pre-wrap;">${p.content}</div>
+      <div class="list-item-title">${esc(p.title)} <span class="badge ${p.status==='매칭완료' ? 'badge-gray' : p.status==='소셜링 취소' ? 'badge-red' : 'badge-green'}">${p.status}</span></div>
+      <div class="list-item-sub">${esc(p.author)} · 최대 ${p.maxPeople}명(호스트 포함)${p.coHost ? ' · 공동호스트: ' + esc(p.coHost) : ''} · ${String(p.createdAt).substring(0,16)}</div>
+      <div class="list-item-sub" style="white-space:pre-wrap;">${esc(p.content)}</div>
       <div class="btn-row">
         <button class="btn-sm btn-green" onclick="applyAsCoHost('${p.id}')">공동호스트로 참여하기</button>
         <select onchange="changeAdminBoardStatus('${p.id}', this.value)">
@@ -355,14 +355,14 @@ function renderInventoryList() {
   list.innerHTML = allInventoryItems.map((it, i) => `
     <div class="list-item">
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div class="list-item-title" style="cursor:pointer; color:#1D9E75; text-decoration:underline;" onclick="toggleItemHistory(${i})">${it['품목명']}</div>
+        <div class="list-item-title" style="cursor:pointer; color:#1D9E75; text-decoration:underline;" onclick="toggleItemHistory(${i})">${esc(it['품목명'])}</div>
         <div style="display:flex; align-items:center; gap:6px;">
           <button class="btn-sm btn-gray" style="width:28px; padding:4px 0;" onclick="quickAdjustInventory('${it['품목명']}', -1)">－</button>
           <span class="badge badge-green" style="min-width:44px; text-align:center;">${it['현재수량']}${it['단위'] || ''}</span>
           <button class="btn-sm btn-green" style="width:28px; padding:4px 0;" onclick="quickAdjustInventory('${it['품목명']}', 1)">＋</button>
         </div>
       </div>
-      ${it['비고'] ? `<div class="list-item-sub">${it['비고']}</div>` : ''}
+      ${it['비고'] ? `<div class="list-item-sub">${esc(it['비고'])}</div>` : ''}
       <div class="btn-row" style="margin-top:8px;">
         <button class="btn-sm btn-red" onclick="deleteInventoryItemWeb('${it['품목명']}')">품목 삭제</button>
       </div>
@@ -383,7 +383,7 @@ function toggleItemHistory(idx) {
     : itemLogs.map(l => `
         <div style="font-size:12px; color:#666; padding:4px 0; border-bottom:1px solid #f5f5f5;">
           <span class="badge ${l['구분']==='입고' ? 'badge-green' : 'badge-red'}" style="margin-right:6px;">${l['구분']} ${l['수량']}</span>
-          ${l['반납자']} · ${String(l['시간']).substring(0,16)}
+          ${esc(l['반납자'])} · ${String(l['시간']).substring(0,16)}
         </div>
       `).join('');
   container.style.display = 'block';
@@ -466,9 +466,9 @@ async function loadInventoryLog() {
   if (allInventoryLogs.length === 0) { list.innerHTML = '<div class="empty">기록이 없어요</div>'; return; }
   list.innerHTML = allInventoryLogs.slice(0, 30).map(l => `
     <div class="list-item">
-      <div class="list-item-title">${l['품목명']} <span class="badge ${l['구분']==='입고' ? 'badge-green' : 'badge-red'}">${l['구분']} ${l['수량']}</span></div>
-      <div class="list-item-sub">${l['반납자']} · 확인: ${l['확인자'] || '-'} · ${String(l['시간']).substring(0,16)}</div>
-      ${l['메모'] ? `<div class="list-item-sub">${l['메모']}</div>` : ''}
+      <div class="list-item-title">${esc(l['품목명'])} <span class="badge ${l['구분']==='입고' ? 'badge-green' : 'badge-red'}">${l['구분']} ${l['수량']}</span></div>
+      <div class="list-item-sub">${esc(l['반납자'])} · 확인: ${esc(l['확인자'] || '-')} · ${String(l['시간']).substring(0,16)}</div>
+      ${l['메모'] ? `<div class="list-item-sub">${esc(l['메모'])}</div>` : ''}
     </div>
   `).join('');
 }
@@ -493,6 +493,7 @@ async function deleteAdminBoardPost(id) {
   if (res.success) loadAdminBoardList();
   else alert(res.message);
 }
+ 
 async function loadActivities() {
   const res = await api({ action: 'getActivities', generation: currentGen });
   if (res.success) {
@@ -501,6 +502,7 @@ async function loadActivities() {
     renderActivityList();
   }
 }
+ 
 async function loadMembers() {
   const res = await api({ action: 'getMembers', generation: currentGen });
   if (res.success) {
@@ -509,6 +511,7 @@ async function loadMembers() {
     renderMemberList();
   }
 }
+ 
 function populateActivitySelects() {
   const selects = ['daily-activity', 'payment-activity', 'manual-activity'];
   selects.forEach(id => {
@@ -519,6 +522,7 @@ function populateActivitySelects() {
     });
   });
 }
+ 
 async function loadDashboard() {
   const content = document.getElementById('dashboard-content');
   content.innerHTML = '<div class="empty">불러오는 중...</div>';
@@ -556,7 +560,7 @@ async function loadDashboard() {
           <div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #eee;">
             <div style="width:20px; text-align:center; font-size:13px; font-weight:700; color:#888;">${r.rank}</div>
             <div style="width:20px; text-align:center; font-size:16px;">${r.tier === 'crown' ? '👑' : r.tier === 'medal' ? '🥇' : ''}</div>
-            <span style="flex:1; font-size:14px; color:#333; font-weight:500;">${r.name}</span>
+            <span style="flex:1; font-size:14px; color:#333; font-weight:500;">${esc(r.name)}</span>
             <span style="font-size:12px; color:#888;">${r.attended}/${r.total}</span>
           </div>`).join('')
         : '<div style="font-size:13px; color:#aaa;">출석 기록이 없어요</div>'
@@ -566,7 +570,7 @@ async function loadDashboard() {
     Object.entries(actMap).forEach(([activityId, act]) => {
       html += `
         <div class="list-item">
-          <div class="list-item-title">${act.name} <span class="badge badge-gray">${act.date}</span></div>
+          <div class="list-item-title">${esc(act.name)} <span class="badge badge-gray">${act.date}</span></div>
           <div class="list-item-sub">출석 ${act.count}명 / 전체 ${totalMembers}명</div>
           <div class="btn-row">
             <button class="btn-sm btn-blue" onclick="toggleAttendanceDetail('${activityId}')">출석명단</button>
@@ -579,6 +583,7 @@ async function loadDashboard() {
     content.innerHTML = html;
   } catch(e) { content.innerHTML = '<div class="empty">불러오기 실패</div>'; }
 }
+ 
 async function toggleAttendanceDetail(activityId) {
   const container = document.getElementById(`att-detail-${activityId}`);
   if (!container) return;
@@ -598,7 +603,7 @@ async function toggleAttendanceDetail(activityId) {
   let html = '<table><tr><th>이름</th><th>시간</th><th>구분</th></tr>';
   res.attendance.forEach(r => {
     html += `<tr>
-      <td>${r['이름']}</td>
+      <td>${esc(r['이름'])}</td>
       <td style="font-size:11px;">${String(r['출석시간']).substring(0,16)}</td>
       <td>${String(r['일일대원여부']).toUpperCase() === 'TRUE' ? '<span class="badge badge-blue">일일</span>' : '<span class="badge badge-green">정회원</span>'}</td>
     </tr>`;
@@ -629,6 +634,7 @@ async function download1365(activityId, actName) {
     XLSX.writeFile(wb, `1365_${actName}.xlsx`);
   };
 }
+ 
 function renderMemberList() {
   const list = document.getElementById('member-list');
   if (allMembers.length === 0) { list.innerHTML = '<div class="empty">대원이 없어요</div>'; return; }
@@ -638,9 +644,9 @@ function renderMemberList() {
     return `
     <div class="list-item" ${isRefund ? 'style="opacity:0.5;"' : ''}>
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div class="list-item-title">${m['이름']} ${m.isNew ? '❤️' : ''} <span style="font-size:12px; color:#888; font-weight:400;">(${stat.total}/${stat.attended})</span> ${isRefund ? '<span class="badge badge-red">환불</span>' : ''}</div>
+        <div class="list-item-title">${esc(m['이름'])} ${m.isNew ? '❤️' : ''} <span style="font-size:12px; color:#888; font-weight:400;">(${stat.total}/${stat.attended})</span> ${isRefund ? '<span class="badge badge-red">환불</span>' : ''}</div>
         <div style="text-align:right;">
-          <span style="font-size:12px; color:#888;">${m['전화번호']}</span><br>
+          <span style="font-size:12px; color:#888;">${esc(m['전화번호'])}</span><br>
           <button class="btn-sm btn-gray" style="margin-top:4px; padding:2px 8px;" onclick="toggleEditMember(${i})" title="정보 수정">✏️</button>
         </div>
       </div>
@@ -654,15 +660,15 @@ function renderMemberList() {
       </div>
       <div id="edit-member-${i}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
         <label style="margin-top:0;">이름</label>
-        <input type="text" id="edit-member-name-${i}" value="${m['이름']}">
+        <input type="text" id="edit-member-name-${i}" value="${esc(m['이름'])}">
         <label>전화번호 (바꿀 때만 입력, 비워두면 유지)</label>
-        <input type="text" id="edit-member-phone-${i}" placeholder="${m['전화번호']}">
+        <input type="text" id="edit-member-phone-${i}" placeholder="${esc(m['전화번호'])}">
         <label>생년월일</label>
-        <input type="text" id="edit-member-birth-${i}" value="${m['생년월일'] || ''}">
+        <input type="text" id="edit-member-birth-${i}" value="${esc(m['생년월일'] || '')}">
         <label>인식코드</label>
-        <input type="text" id="edit-member-code-${i}" value="${m['인식코드'] || ''}">
+        <input type="text" id="edit-member-code-${i}" value="${esc(m['인식코드'] || '')}">
         <label>1365 ID</label>
-        <input type="text" id="edit-member-1365-${i}" value="${m['1365 ID'] || ''}">
+        <input type="text" id="edit-member-1365-${i}" value="${esc(m['1365 ID'] || '')}">
         <div style="display:flex; gap:8px; margin-top:12px;">
           <button class="btn-sm btn-green" style="flex:1; padding:10px;" onclick="saveEditMember(${i})">저장</button>
           <button class="btn-sm btn-gray" style="flex:1; padding:10px;" onclick="toggleEditMember(${i})">취소</button>
@@ -672,11 +678,13 @@ function renderMemberList() {
     </div>`;
   }).join('');
 }
+ 
 function toggleEditMember(idx) {
   const el = document.getElementById(`edit-member-${idx}`);
   if (!el) return;
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
+
 async function saveEditMember(idx) {
   const m = allMembers[idx];
   let curName = m['이름'];
