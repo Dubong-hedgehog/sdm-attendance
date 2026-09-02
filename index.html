@@ -541,6 +541,10 @@ const fbAuthReady = new Promise((resolve) => {
     return res.json();
   }
 
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 /* ===== 로그인/세션 ===== */
 async function doMemberLogin() {
   const name = document.getElementById('login-name').value.trim();
