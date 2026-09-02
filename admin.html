@@ -793,7 +793,6 @@ async function toggleActivity(idx) {
   else alert(res.message);
 }
 async function addActivity() {
-  const id = document.getElementById('new-act-id').value.trim();
   const name = document.getElementById('new-act-name').value.trim();
   const date = document.getElementById('new-act-date').value.trim();
   const sub = document.getElementById('new-act-sub').value.trim();
@@ -803,9 +802,9 @@ async function addActivity() {
   const is1365 = document.getElementById('new-act-1365').checked;
   const active = document.getElementById('new-act-active').checked;
   const countAttendance = document.getElementById('new-act-count').checked;
-  if (!id || !name || !date) { showMsg('activity-msg', '활동ID, 활동명, 날짜는 필수예요.', 'error'); return; }
+  if (!name || !date) { showMsg('activity-msg', '활동명과 날짜는 필수예요.', 'error'); return; }
   const res = await api({
-    action: 'addActivity', activityId: id, name, date,
+    action: 'addActivity', name, date,
     generation: currentGen, subItems: sub,
     extraFlag: hasExtra ? 'TRUE' : 'FALSE',
     extraMsg: extraMsg, extraItems: extraItems,
