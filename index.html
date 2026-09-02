@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#1D9E75">
-<title>SDM 출석체크</title>
+<title>SDM 출석체크</title>loadCardBattleRanking
 <link rel="manifest" href="manifest.json">
 <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=e43bd5dd9429b044cbd54d3fdb1bc13a&libraries=services"></script>
 <style>
@@ -1891,21 +1891,6 @@ async function loadAnimalRanking() {
     </div>
   `).join('');
 }
-async function loadCardBattleRanking() {
-  const res = await api({ action: 'getGameRanking', game: '동물카드대전' });
-  const list = document.getElementById('game-rank-list-cardbattle');
-  if (!res.success || res.ranking.length === 0) {
-    list.innerHTML = '<div class="empty-state">아직 진행 중인 미니게임이 없어요</div>';
-    return;
-  }
-  list.innerHTML = res.ranking.map((r, i) => `
-    <div class="status-card" style="display:flex; align-items:center; gap:10px;">
-      <div style="width:22px; text-align:center; font-size:14px; font-weight:700; color:#888;">${i + 1}</div>
-      <span style="flex:1; font-size:15px; font-weight:500;">${esc(r.name)}</span>
-      <span style="font-size:13px; color:#888;">${r.score}점</span>
-    </div>
-  `).join('');
-}
 
 /* ===== SDM카드대전 (Firebase Realtime Database 기반 실시간 매칭) ===== */
 const CARD_IMAGES = ['image/animal1.png','image/animal2.png','image/animal3.png','image/animal4.png','image/animal5.png','image/animal6.png','image/animal7.png','image/animal8.png'];
@@ -2263,7 +2248,7 @@ async function loadCardBattleRanking() {
   list.innerHTML = res.ranking.map((r, i) => `
     <div class="status-card" style="display:flex; align-items:center; gap:10px;">
       <div style="width:22px; text-align:center; font-size:14px; font-weight:700; color:#888;">${i + 1}</div>
-      <span style="flex:1; font-size:15px; font-weight:500;">${r.name}</span>
+      <span style="flex:1; font-size:15px; font-weight:500;">${esc(r.name)}</span>
       <span style="font-size:13px; color:#888;">${r.score}점</span>
     </div>
   `).join('');
