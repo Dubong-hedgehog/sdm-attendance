@@ -730,6 +730,14 @@ async function loadActivities() {
           preSel.innerHTML += `<option value="${act['활동ID']}">${label}</option>`;
         });
         const today = new Date(); today.setHours(0,0,0,0);
+        const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+        const todaysActivities = allActivities.filter(a =>
+          (a['날짜'] ? String(a['날짜']).split('T')[0] : '') === todayStr
+        );
+        if (todaysActivities.length === 1) {
+          attendSel.value = todaysActivities[0]['활동ID'];
+          onActivityChange();
+        }
         const upcoming = data.activities
         .filter(a => new Date(String(a['날짜']).split('T')[0]) >= today)
         .sort((a, b) => new Date(String(a['날짜']).split('T')[0]) - new Date(String(b['날짜']).split('T')[0]));
@@ -737,6 +745,7 @@ async function loadActivities() {
       }
     } catch(e) { console.error('활동 목록 로드 실패', e); }
   }
+
 function renderNextActivityHeader(act) {
   const header = document.getElementById('next-activity-header');
   const nameEl = document.getElementById('next-activity-name');
