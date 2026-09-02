@@ -2439,12 +2439,6 @@ async function submitAttend() {
   const btn = document.querySelector('#section-attend .btn');
   btn.disabled = true; btn.textContent = '확인 중...';
   try {
-    const check = await api({ action: 'checkAttendance', name, phone4, activityId, generation: CURRENT_GEN });
-    if (!check.success) {
-      showMsg('attend-msg', check.message, 'error');
-      btn.disabled = false; btn.textContent = '출석 완료';
-      return;
-    }
     const submit = await api({
       action: 'submitAttendance', name, phone4, activityId,
       subActivity: checkedItems, generation: CURRENT_GEN, isDaily: false
