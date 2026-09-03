@@ -833,7 +833,7 @@ function renderActivityList() {
     return `
     <div class="list-item" id="act-item-${i}">
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div class="list-item-title" onclick="toggleEditActivity(${i})" style="cursor:pointer; color:#1D9E75; text-decoration:underline;">${act['활동명']}</div>
+        <div class="list-item-title" onclick="toggleEditActivity(${i})" style="cursor:pointer; color:#1D9E75; text-decoration:underline;">${esc(act['활동명'])}</div>
         <div style="display:flex; align-items:center; gap:6px;">
           <span class="badge ${active ? 'badge-green' : 'badge-gray'}">${active ? '활성' : '비활성'}</span>
           <button class="btn-sm btn-blue" onclick="toggleChecklist(${i})" title="준비물 체크리스트">+</button>
@@ -845,7 +845,7 @@ function renderActivityList() {
       </div>
       <div id="edit-activity-${i}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
         <label style="margin-top:0;">활동명</label>
-        <input type="text" id="edit-name-${i}" value="${act['활동명']}">
+        <input type="text" id="edit-name-${i}" value="${esc(act['활동명'])}">
         <label>날짜</label>
         <input type="text" id="edit-date-${i}" value="${String(act['날짜']).split('T')[0]}">
         <label>정원 (선택, 비워두면 제한 없음)</label>
@@ -853,24 +853,24 @@ function renderActivityList() {
         <label>사전신청 마감일시 (선택)</label>
         <input type="datetime-local" id="edit-deadline-${i}" value="${act['마감일시'] || ''}">
         <label>세부참여항목 (쉼표 구분)</label>
-        <input type="text" id="edit-sub-${i}" value="${act['세부참여항목'] || ''}">
+        <input type="text" id="edit-sub-${i}" value="${esc(act['세부참여항목'] || '')}">
         <label>장소명 (세부항목이 여러 개면 콤마로 순서 맞춰 입력)</label>
-        <input type="text" id="edit-place-${i}" value="${act['장소명'] || ''}" placeholder="예: 홍제천 또는 A장소,B장소">
+        <input type="text" id="edit-place-${i}" value="${esc(act['장소명'] || '')}" placeholder="예: 홍제천 또는 A장소,B장소">
         <label>주소 (세부항목이 여러 개면 콤마로 순서 맞춰 입력)</label>
-        <input type="text" id="edit-address-${i}" value="${act['주소'] || ''}" placeholder="예: 서울 서대문구 ... 또는 A주소,B주소">
+        <input type="text" id="edit-address-${i}" value="${esc(act['주소'] || '')}" placeholder="예: 서울 서대문구 ... 또는 A주소,B주소">
         <label>카카오톡 오픈채팅 링크 (푸시 알림 클릭 시 이동)</label>
-        <input type="text" id="edit-kakao-${i}" value="${act['카카오톡링크'] || ''}" placeholder="https://open.kakao.com/o/...">
+        <input type="text" id="edit-kakao-${i}" value="${esc(act['카카오톡링크'] || '')}" placeholder="https://open.kakao.com/o/...">
         <label>알림 문구 (비워두면 기본 문구로 발송)</label>
-        <input type="text" id="edit-pushmsg-${i}" value="${act['알림문구'] || ''}" placeholder="내일 활동 있어요! 사전신청하신 분들은 확인해주세요">
+        <input type="text" id="edit-pushmsg-${i}" value="${esc(act['알림문구'] || '')}" placeholder="내일 활동 있어요! 사전신청하신 분들은 확인해주세요">
         <div class="toggle-wrap" style="margin-top:12px;">
           <input type="checkbox" id="edit-extra-${i}" ${String(act['추가비용여부']).toUpperCase()==='TRUE' ? 'checked' : ''} onchange="toggleEditExtra(${i})">
           <label for="edit-extra-${i}">추가비용 있음</label>
         </div>
         <div id="edit-extra-wrap-${i}" style="display:${String(act['추가비용여부']).toUpperCase()==='TRUE' ? 'block' : 'none'};">
           <label>추가비용안내 (| 로 구분)</label>
-          <input type="text" id="edit-extra-msg-${i}" value="${act['추가비용안내'] || ''}">
+          <input type="text" id="edit-extra-msg-${i}" value="${esc(act['추가비용안내'] || '')}">
           <label>세부항목추가금</label>
-          <input type="text" id="edit-extra-items-${i}" value="${act['세부항목추가금'] || ''}">
+          <input type="text" id="edit-extra-items-${i}" value="${esc(act['세부항목추가금'] || '')}">
         </div>
         <div class="toggle-wrap" style="margin-top:12px;">
           <input type="checkbox" id="edit-1365-${i}" ${String(act['1365처리여부']).toUpperCase()==='TRUE' ? 'checked' : ''}>
@@ -971,16 +971,17 @@ async function loadPayment() {
     return `
     <div class="list-item">
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div class="list-item-title">${r['이름']}</div>
+        <div class="list-item-title">${esc(r['이름'])}</div>
         <span class="badge ${paid ? 'badge-green' : 'badge-red'}">${paid ? '납부완료' : '미납'}</span>
       </div>
-      <div class="list-item-sub">신청: ${String(r['신청시간']).substring(0,16)} ${r['세부항목납부'] ? '· ' + r['세부항목납부'] : ''}</div>
+      <div class="list-item-sub">신청: ${String(r['신청시간']).substring(0,16)} ${r['세부항목납부'] ? '· ' + esc(r['세부항목납부']) : ''}</div>
       <button class="btn-sm ${paid ? 'btn-gray' : 'btn-green'}" onclick="togglePayment('${activityId}','${r['이름']}','${phone4}',${paid})">
         ${paid ? '납부취소' : '납부확인'}
       </button>
     </div>`;
   }).join('');
 }
+
 async function togglePayment(activityId, name, phone4, currentPaid) {
   const res = await api({ action: 'updatePayment', activityId, name, phone4, paid: !currentPaid });
   if (res.success) loadPayment();
