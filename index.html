@@ -566,8 +566,9 @@ const FCM_VAPID_KEY = 'BLfx2nEk1kxDKFgZEG4rO3rj6Car5oDwtDOFIa9BkPKoI4GYgPOG9PbKO
 let fcmMessaging = null;
 
 async function initPushNotifications() {
+  alert('디버그: UA = ' + navigator.userAgent);
   if (!('serviceWorker' in navigator) || !('Notification' in window)) {
-    alert('디버그: 서비스워커 또는 알림 미지원 브라우저');
+    alert('디버그: 서비스워커=' + ('serviceWorker' in navigator) + ', 알림=' + ('Notification' in window));
     return;
   }
   try {
