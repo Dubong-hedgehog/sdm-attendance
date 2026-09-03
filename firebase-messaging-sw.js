@@ -6,8 +6,8 @@ firebase.initializeApp(FIREBASE_CONFIG);
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const title = (payload.notification && payload.notification.title) || 'SDM 출석체크';
-  const body = (payload.notification && payload.notification.body) || (payload.data && payload.data.body) || '';
+  const title = (payload.data && payload.data.title) || 'SDM 출석체크';
+  const body = (payload.data && payload.data.body) || '';
   const clickUrl = (payload.data && payload.data.clickUrl) || '/';
   self.registration.showNotification(title, {
     body,
