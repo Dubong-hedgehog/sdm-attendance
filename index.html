@@ -514,6 +514,7 @@
 <script src="https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.17.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.17.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging-compat.js"></script>
 <script>
 let allActivities = [];
  /* ===== 연탄나르기 스프라이트 ===== */
@@ -558,6 +559,37 @@ const fbAuthReady = new Promise((resolve) => {
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+const FCM_VAPID_KEY = 'BLfx2nEk1kxDKFgZEG4rO3rj6Car5oDwtDOFIa9BkPKoI4GYgPOG9PbKO1kj3ZxdwnacH89Pl-xWwZ8RBE7SBvc';
+let fcmMessaging = null;
+
+async function initPushNotifications() {
+  if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+  try {
+    const registration = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+    if (!fcmMessaging) fcmMessaging = firebase.messaging();
+    if (Notification.permission === 'denied') return;
+    if (Notification.permission !== 'granted') {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') return;
+    }
+    const token = await fcmMessaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registration });
+    if (token) {
+      await api({ action: 'savePushToken', name: SESSION.name, phone4: SESSION.phone4, generation: CURRENT_GEN, token });
+    }
+    fcmMessaging.onMessage((payload) => {
+      const title = (payload.notification && payload.notification.title) || 'SDM 출석체크';
+      const body = (payload.notification && payload.notification.body) || '';
+      const clickUrl = (payload.data && payload.data.clickUrl) || '';
+      if (Notification.permission === 'granted') {
+        const n = new Notification(title, { body });
+        n.onclick = () => { if (clickUrl) window.open(clickUrl, '_blank'); };
+      }
+    });
+  } catch (e) {
+    console.error('푸시 알림 초기화 실패', e);
+  }
 }
 
 /* ===== 로그인/세션 ===== */
@@ -2632,6 +2664,7 @@ async function initApp() {
   await initGeneration();
   loadActivities();
   loadNotices();
+  initPushNotifications();
 }
 async function loadNotices() {
   try {
