@@ -577,6 +577,7 @@ async function initPushNotifications() {
     }
     const token = await fcmMessaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registration });
     if (token) {
+      alert('내 토큰: ' + token); // 임시 디버깅용 - 확인 후 이 줄 삭제
       const res = await api({ action: 'savePushToken', name: SESSION.name, phone4: SESSION.phone4, token });
       if (!res.success) console.error('푸시토큰 저장 실패', res.message);
     }
