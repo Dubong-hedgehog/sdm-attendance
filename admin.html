@@ -256,6 +256,7 @@ let allMembers = [];
 let currentGen = '';
 let adminName = '';
 let memberAttendanceStats = {};
+let allAttendance = [];
  
 async function api(body) {
   const res = await fetch(CONFIG.API_URL, { method: 'POST', body: JSON.stringify(body) });
@@ -329,6 +330,7 @@ function doLogout() {
 
 let allNotices = [];
 async function loadAll() {
+  await loadAttendanceOnce();
   await loadActivities();
   await loadMembers();
   loadDashboard();
@@ -336,11 +338,18 @@ async function loadAll() {
   loadInventory();
   loadNoticesAdmin();
 }
+
+async function loadAttendanceOnce() {
+  const res = await api({ action: 'getAttendance' });
+  allAttendance = res.success ? res.attendance : [];
+}
+ 
 async function loadNoticesAdmin() {
   const res = await api({ action: 'getNotices', generation: currentGen });
   allNotices = res.success ? res.notices : [];
   renderNoticesAdmin();
 }
+ 
 function renderNoticesAdmin() {
   const list = document.getElementById('notice-admin-list');
   if (allNotices.length === 0) { list.innerHTML = '<div class="empty">등록된 공지가 없어요</div>'; return; }
@@ -625,8 +634,7 @@ async function loadDashboard() {
   const content = document.getElementById('dashboard-content');
   content.innerHTML = '<div class="empty">불러오는 중...</div>';
   try {
-    const attRes = await api({ action: 'getAttendance' });
-    const attendance = attRes.success ? attRes.attendance : [];
+    const attendance = allAttendance;
     const totalMembers = allMembers.filter(m =>
       String(m['환불여부']).toUpperCase() !== 'TRUE'
     ).length;
@@ -1162,9 +1170,8 @@ async function saveEditActivity(idx) {
   return new Set(pastActivities.map(a => a['활동ID']));
 }
       // 개근 수 표기
- async function loadMemberAttendanceStats() {
-  const attRes = await api({ action: 'getAttendance' });
-  const attendance = attRes.success ? attRes.attendance : [];
+async function loadMemberAttendanceStats() {
+  const attendance = allAttendance;
   const countedIds = getCountedPastActivityIds();
   const total = countedIds.size;
   const attendedMap = {};
