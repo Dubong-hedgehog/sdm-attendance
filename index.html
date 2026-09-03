@@ -517,6 +517,34 @@
 <script src="https://www.gstatic.com/firebasejs/12.17.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging-compat.js"></script>
 <script>
+<script>
+(function() {
+  var ua = navigator.userAgent || '';
+  var isInApp = /KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\//i.test(ua);
+  if (!isInApp) return;
+
+  var isAndroid = /Android/i.test(ua);
+  var isIOS = /iPhone|iPad|iPod/i.test(ua);
+  var currentUrl = location.href;
+
+  function showFallbackBanner() {
+    var banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#1D9E75;color:#fff;padding:12px 16px;font-size:14px;text-align:center;line-height:1.5;';
+    banner.innerHTML = '이 앱 내 브라우저에서는 알림 등 일부 기능이 제한됩니다.<br>우측 상단 <b>⋮ 메뉴 → 다른 브라우저로 열기</b>를 눌러주세요.';
+    document.body.appendChild(banner);
+  }
+
+  if (isAndroid) {
+    location.href = 'intent://' + currentUrl.replace(/^https?:\/\//, '') + '#Intent;scheme=https;end';
+    setTimeout(showFallbackBanner, 1500);
+  } else if (isIOS && /KAKAOTALK/i.test(ua)) {
+    location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(currentUrl);
+    setTimeout(showFallbackBanner, 1500);
+  } else {
+    showFallbackBanner();
+  }
+})();
+</script>
 let allActivities = [];
  /* ===== 연탄나르기 스프라이트 ===== */
 const COAL_SPRITE_PATHS = {
