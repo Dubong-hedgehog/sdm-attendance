@@ -591,32 +591,19 @@ const FCM_VAPID_KEY = 'BLfx2nEk1kxDKFgZEG4rO3rj6Car5oDwtDOFIa9BkPKoI4GYgPOG9PbKO
 let fcmMessaging = null;
 
 async function initPushNotifications() {
-  alert('디버그: UA = ' + navigator.userAgent);
-  if (!('serviceWorker' in navigator) || !('Notification' in window)) {
-    alert('디버그: 서비스워커=' + ('serviceWorker' in navigator) + ', 알림=' + ('Notification' in window));
-    return;
-  }
+  if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
   try {
-    alert('디버그: 함수 시작, 현재 권한 = ' + Notification.permission);
     const registration = await navigator.serviceWorker.register('firebase-messaging-sw.js');
-    alert('디버그: 서비스워커 등록 완료');
     if (!fcmMessaging) fcmMessaging = firebase.messaging();
-    if (Notification.permission === 'denied') {
-      alert('디버그: 알림 권한이 거부 상태라 중단됨');
-      return;
-    }
+    if (Notification.permission === 'denied') return;
     if (Notification.permission !== 'granted') {
       const perm = await Notification.requestPermission();
-      alert('디버그: 권한 요청 결과 = ' + perm);
       if (perm !== 'granted') return;
     }
     const token = await fcmMessaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registration });
     if (token) {
-      alert('내 토큰: ' + token);
       const res = await api({ action: 'savePushToken', name: SESSION.name, phone4: SESSION.phone4, token });
-      if (!res.success) alert('토큰 저장 실패: ' + res.message);
-    } else {
-      alert('디버그: 토큰이 비어있음(null)');
+      if (!res.success) console.error('푸시토큰 저장 실패', res.message);
     }
     fcmMessaging.onMessage((payload) => {
       const title = (payload.data && payload.data.title) || 'SDM 출석체크';
@@ -628,11 +615,80 @@ async function initPushNotifications() {
       }
     });
   } catch (e) {
-    alert('디버그: 에러 발생 - ' + e.message);
     console.error('푸시 알림 초기화 실패', e);
   }
 }
 
+function shouldShowPushPrompt() {
+  try { return localStorage.getItem('sdm_push_asked') !== '1'; } catch (e) { return true; }
+}
+
+function markPushPromptSeen() {
+  try { localStorage.setItem('sdm_push_asked', '1'); } catch (e) {}
+}
+
+function showPushOnboarding() {
+  const hasNotificationAPI = 'Notification' in window;
+
+  if (!shouldShowPushPrompt()) {
+    if (hasNotificationAPI && Notification.permission === 'granted') initPushNotifications();
+    return;
+  }
+
+  if (hasNotificationAPI && Notification.permission !== 'default') {
+    markPushPromptSeen();
+    if (Notification.permission === 'granted') initPushNotifications();
+    return;
+  }
+
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const isStandalone = window.navigator.standalone === true;
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:16px;padding:24px;max-width:340px;text-align:center;';
+
+  if (isIOS && !isStandalone) {
+    box.innerHTML =
+      '<h3 style="margin:0 0 12px;color:#1D9E75;">활동 알림 받기</h3>' +
+      '<p style="font-size:14px;line-height:1.6;color:#333;">' +
+      '아이폰에서 활동 알림을 받으려면 홈 화면에 추가해야 해요.<br><br>' +
+      '① 하단 공유 버튼(⬆️) 탭<br>' +
+      '② "홈 화면에 추가" 선택<br>' +
+      '③ 홈 화면 아이콘으로 다시 열기<br><br>' +
+      '추가하지 않으면 사전신청한 활동의 알림을 받을 수 없어요.</p>' +
+      '<button id="push-onboard-close" style="margin-top:8px;background:#1D9E75;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;">확인했어요</button>';
+  } else {
+    box.innerHTML =
+      '<h3 style="margin:0 0 12px;color:#1D9E75;">활동 알림을 받으시겠어요?</h3>' +
+      '<p style="font-size:14px;line-height:1.6;color:#333;">' +
+      '사전신청하신 활동이 있으면 하루 전에 알려드려요.<br>' +
+      '받지 않으면 활동 알림을 놓칠 수 있어요.</p>' +
+      '<div style="margin-top:16px;display:flex;gap:8px;justify-content:center;">' +
+      '<button id="push-onboard-deny" style="background:#eee;color:#333;border:none;border-radius:8px;padding:10px 20px;font-size:14px;">받지 않음</button>' +
+      '<button id="push-onboard-allow" style="background:#1D9E75;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;">알림 받기</button>' +
+      '</div>';
+  }
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  const closeBtn = document.getElementById('push-onboard-close');
+  if (closeBtn) {
+    closeBtn.onclick = () => { document.body.removeChild(overlay); markPushPromptSeen(); };
+  }
+  const allowBtn = document.getElementById('push-onboard-allow');
+  const denyBtn = document.getElementById('push-onboard-deny');
+  if (allowBtn) {
+    allowBtn.onclick = () => { document.body.removeChild(overlay); markPushPromptSeen(); initPushNotifications(); };
+  }
+  if (denyBtn) {
+    denyBtn.onclick = () => { document.body.removeChild(overlay); markPushPromptSeen(); };
+  }
+}
+ 
 /* ===== 로그인/세션 ===== */
 async function doMemberLogin() {
   const name = document.getElementById('login-name').value.trim();
@@ -2715,7 +2771,7 @@ async function initApp() {
   await initGeneration();
   loadActivities();
   loadNotices();
-  initPushNotifications();
+  showPushOnboarding();
 }
 async function loadNotices() {
   try {
