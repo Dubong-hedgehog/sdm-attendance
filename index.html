@@ -886,10 +886,22 @@ async function loadActivities() {
         const upcoming = data.activities
         .filter(a => new Date(String(a['날짜']).split('T')[0]) >= today)
         .sort((a, b) => new Date(String(a['날짜']).split('T')[0]) - new Date(String(b['날짜']).split('T')[0]));
-        renderNextActivityHeader(upcoming[0] || null);
+        const myRegisteredIds = await getMyUpcomingRegisteredIds();
+        const myUpcoming = upcoming.filter(a => myRegisteredIds.has(a['활동ID']));
+        renderNextActivityHeader(myUpcoming[0] || upcoming[0] || null);
       }
     } catch(e) { console.error('활동 목록 로드 실패', e); }
   }
+
+async function getMyUpcomingRegisteredIds() {
+  try {
+    const res = await api({ action: 'getMemberStatus', name: SESSION.name, phone4: SESSION.phone4 });
+    if (!res.success || !res.preRegistered) return new Set();
+    return new Set(res.preRegistered.map(r => r.activityId));
+  } catch (e) {
+    return new Set();
+  }
+}
 
 function renderNextActivityHeader(act) {
   const header = document.getElementById('next-activity-header');
