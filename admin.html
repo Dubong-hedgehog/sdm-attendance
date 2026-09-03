@@ -850,6 +850,10 @@ function renderActivityList() {
         <input type="datetime-local" id="edit-deadline-${i}" value="${act['마감일시'] || ''}">
         <label>세부참여항목 (쉼표 구분)</label>
         <input type="text" id="edit-sub-${i}" value="${act['세부참여항목'] || ''}">
+        <label>카카오톡 오픈채팅 링크 (푸시 알림 클릭 시 이동)</label>
+        <input type="text" id="edit-kakao-${i}" value="${act['카카오톡링크'] || ''}" placeholder="https://open.kakao.com/o/...">
+        <label>알림 문구 (비워두면 기본 문구로 발송)</label>
+        <input type="text" id="edit-pushmsg-${i}" value="${act['알림문구'] || ''}" placeholder="내일 활동 있어요! 사전신청하신 분들은 확인해주세요">
         <div class="toggle-wrap" style="margin-top:12px;">
           <input type="checkbox" id="edit-extra-${i}" ${String(act['추가비용여부']).toUpperCase()==='TRUE' ? 'checked' : ''} onchange="toggleEditExtra(${i})">
           <label for="edit-extra-${i}">추가비용 있음</label>
@@ -1084,6 +1088,8 @@ async function saveEditActivity(idx) {
   const capacity = document.getElementById(`edit-capacity-${idx}`).value.trim();
   const deadline = document.getElementById(`edit-deadline-${idx}`).value;
   const sub = document.getElementById(`edit-sub-${idx}`).value.trim();
+  const kakaoLink = document.getElementById(`edit-kakao-${idx}`).value.trim();
+  const pushMsg = document.getElementById(`edit-pushmsg-${idx}`).value.trim();
   const hasExtra = document.getElementById(`edit-extra-${idx}`).checked;
   const extraMsg = document.getElementById(`edit-extra-msg-${idx}`).value.trim();
   const extraItems = document.getElementById(`edit-extra-items-${idx}`).value.trim();
@@ -1097,6 +1103,7 @@ async function saveEditActivity(idx) {
     name, date,
     capacity, deadline,
     subItems: sub,
+    kakaoLink, pushMsg,
     extraFlag: hasExtra ? 'TRUE' : 'FALSE',
     extraMsg, extraItems,
     is1365: is1365 ? 'TRUE' : 'FALSE',
@@ -1106,6 +1113,7 @@ async function saveEditActivity(idx) {
     allActivities[idx] = {
       ...act, '활동명': name, '날짜': date, '세부참여항목': sub,
       '정원': capacity, '마감일시': deadline,
+      '카카오톡링크': kakaoLink, '알림문구': pushMsg,
       '추가비용여부': hasExtra ? 'TRUE' : 'FALSE',
       '추가비용안내': extraMsg, '세부항목추가금': extraItems,
       '1365처리여부': is1365 ? 'TRUE' : 'FALSE',
