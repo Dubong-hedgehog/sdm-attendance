@@ -581,8 +581,8 @@ async function initPushNotifications() {
       if (!res.success) console.error('푸시토큰 저장 실패', res.message);
     }
     fcmMessaging.onMessage((payload) => {
-      const title = (payload.notification && payload.notification.title) || 'SDM 출석체크';
-      const body = (payload.notification && payload.notification.body) || '';
+      const title = (payload.data && payload.data.title) || 'SDM 출석체크';
+      const body = (payload.data && payload.data.body) || '';
       const clickUrl = (payload.data && payload.data.clickUrl) || '';
       if (Notification.permission === 'granted') {
         const n = new Notification(title, { body });
