@@ -903,7 +903,7 @@ async function getMyUpcomingRegisteredIds() {
   }
 }
 
-function renderNextActivityHeader(act) {
+async function renderNextActivityHeader(act) {
   const header = document.getElementById('next-activity-header');
   const nameEl = document.getElementById('next-activity-name');
   const ddayEl = document.getElementById('next-dday');
@@ -932,10 +932,39 @@ function renderNextActivityHeader(act) {
     ddayEl.textContent = `D+${Math.abs(diff)}`;
     header.style.background = 'linear-gradient(135deg, #888 0%, #666 100%)';
   }
-  const placeName = act['장소명'] || '';
-  const address = act['주소'] || '';
+
+  let placeName = act['장소명'] || '';
+  let address = act['주소'] || '';
+  const subItemsList = act['세부참여항목'] ? String(act['세부참여항목']).split(',').map(s => s.trim()).filter(Boolean) : [];
+  const placeNameList = placeName ? placeName.split(',').map(s => s.trim()) : [];
+  const addressList = address ? address.split(',').map(s => s.trim()) : [];
+
+  if (subItemsList.length > 1 && placeNameList.length === subItemsList.length && addressList.length === subItemsList.length) {
+    try {
+      const preRes = await api({ action: 'getPreRegister', activityId: act['활동ID'] });
+      const myRow = preRes.success
+        ? preRes.preRegister.find(r => r['이름'] === SESSION.name && String(r['전화번호']).replace(/-/g, '').slice(-4) === SESSION.phone4)
+        : null;
+      const mySubItem = myRow ? String(myRow['세부항목납부'] || '').trim() : '';
+      const idx = subItemsList.indexOf(mySubItem);
+      if (idx !== -1) {
+        placeName = placeNameList[idx];
+        address = addressList[idx];
+      } else {
+        placeName = '';
+        address = '';
+      }
+    } catch (e) {
+      console.error('세부항목별 장소 조회 실패', e);
+      placeName = '';
+      address = '';
+    }
+  }
+
   if (placeName || address) {
     locEl.innerHTML = `📍 ${placeName}${placeName && address ? ' · ' : ''}${address}`;
+  } else {
+    locEl.innerHTML = '';
   }
   if (address && typeof kakao !== 'undefined') {
     mapContainer.style.display = 'block';
@@ -949,8 +978,11 @@ function renderNextActivityHeader(act) {
         mapContainer.style.display = 'none';
       }
     });
+  } else {
+    mapContainer.style.display = 'none';
   }
 }
+
 function onActivityChange() {
   const activityId = document.getElementById('attend-activity').value;
   const group = document.getElementById('sub-activity-group');
