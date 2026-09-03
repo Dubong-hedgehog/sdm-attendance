@@ -153,6 +153,10 @@
       <input type="datetime-local" id="new-act-deadline">
       <label>세부참여항목 (쉼표 구분, 없으면 공란)</label>
       <input type="text" id="new-act-sub" placeholder="활동A,활동B,활동C..">
+      <label>장소명 (세부항목이 여러 개면 콤마로 순서 맞춰 입력)</label>
+      <input type="text" id="new-act-place" placeholder="예: 홍제천 또는 A장소,B장소">
+      <label>주소 (세부항목이 여러 개면 콤마로 순서 맞춰 입력)</label>
+      <input type="text" id="new-act-address" placeholder="예: 서울 서대문구 ... 또는 A주소,B주소">
       <div class="toggle-wrap" style="margin-top:14px;">
         <input type="checkbox" id="new-act-extra">
         <label for="new-act-extra">추가비용 있음</label>
@@ -850,6 +854,10 @@ function renderActivityList() {
         <input type="datetime-local" id="edit-deadline-${i}" value="${act['마감일시'] || ''}">
         <label>세부참여항목 (쉼표 구분)</label>
         <input type="text" id="edit-sub-${i}" value="${act['세부참여항목'] || ''}">
+        <label>장소명 (세부항목이 여러 개면 콤마로 순서 맞춰 입력)</label>
+        <input type="text" id="edit-place-${i}" value="${act['장소명'] || ''}" placeholder="예: 홍제천 또는 A장소,B장소">
+        <label>주소 (세부항목이 여러 개면 콤마로 순서 맞춰 입력)</label>
+        <input type="text" id="edit-address-${i}" value="${act['주소'] || ''}" placeholder="예: 서울 서대문구 ... 또는 A주소,B주소">
         <label>카카오톡 오픈채팅 링크 (푸시 알림 클릭 시 이동)</label>
         <input type="text" id="edit-kakao-${i}" value="${act['카카오톡링크'] || ''}" placeholder="https://open.kakao.com/o/...">
         <label>알림 문구 (비워두면 기본 문구로 발송)</label>
@@ -907,6 +915,8 @@ async function addActivity() {
   const capacity = document.getElementById('new-act-capacity').value.trim();
   const deadline = document.getElementById('new-act-deadline').value;
   const sub = document.getElementById('new-act-sub').value.trim();
+  const placeName = document.getElementById('new-act-place').value.trim();
+  const address = document.getElementById('new-act-address').value.trim();
   const hasExtra = document.getElementById('new-act-extra').checked;
   const extraMsg = document.getElementById('new-act-extra-msg').value.trim();
   const extraItems = document.getElementById('new-act-extra-items').value.trim();
@@ -918,6 +928,7 @@ async function addActivity() {
     action: 'addActivity', name, date,
     generation: currentGen, subItems: sub,
     capacity, deadline,
+    placeName, address,
     extraFlag: hasExtra ? 'TRUE' : 'FALSE',
     extraMsg: extraMsg, extraItems: extraItems,
     is1365: is1365 ? 'TRUE' : 'FALSE', active, countAttendance
@@ -926,6 +937,8 @@ async function addActivity() {
     showMsg('activity-msg', '활동이 추가되었습니다.', 'success');
     document.getElementById('new-act-capacity').value = '';
     document.getElementById('new-act-deadline').value = '';
+    document.getElementById('new-act-place').value = '';
+    document.getElementById('new-act-address').value = '';
     await loadActivities();
   } else { showMsg('activity-msg', res.message, 'error'); }
 }
@@ -1088,6 +1101,8 @@ async function saveEditActivity(idx) {
   const capacity = document.getElementById(`edit-capacity-${idx}`).value.trim();
   const deadline = document.getElementById(`edit-deadline-${idx}`).value;
   const sub = document.getElementById(`edit-sub-${idx}`).value.trim();
+  const placeName = document.getElementById(`edit-place-${idx}`).value.trim();
+  const address = document.getElementById(`edit-address-${idx}`).value.trim();
   const kakaoLink = document.getElementById(`edit-kakao-${idx}`).value.trim();
   const pushMsg = document.getElementById(`edit-pushmsg-${idx}`).value.trim();
   const hasExtra = document.getElementById(`edit-extra-${idx}`).checked;
@@ -1103,6 +1118,7 @@ async function saveEditActivity(idx) {
     name, date,
     capacity, deadline,
     subItems: sub,
+    placeName, address,
     kakaoLink, pushMsg,
     extraFlag: hasExtra ? 'TRUE' : 'FALSE',
     extraMsg, extraItems,
@@ -1113,6 +1129,7 @@ async function saveEditActivity(idx) {
     allActivities[idx] = {
       ...act, '활동명': name, '날짜': date, '세부참여항목': sub,
       '정원': capacity, '마감일시': deadline,
+      '장소명': placeName, '주소': address,
       '카카오톡링크': kakaoLink, '알림문구': pushMsg,
       '추가비용여부': hasExtra ? 'TRUE' : 'FALSE',
       '추가비용안내': extraMsg, '세부항목추가금': extraItems,
