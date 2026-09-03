@@ -370,6 +370,7 @@
       <div class="success-icon">✓</div>
       <h2>신청 완료!</h2>
       <p>사전 신청이 접수되었어요</p>
+      <button class="btn" onclick="resetPreForm()">다른 활동 신청하기</button>
     </div>
   </div>
 <!-- 마이페이지 -->
@@ -2572,6 +2573,16 @@ async function submitPre() {
     btn.disabled = false; btn.textContent = '신청 완료';
   }
 }
+
+function resetPreForm() {
+  document.getElementById('pre-success').classList.remove('show');
+  document.getElementById('pre-form').style.display = 'block';
+  document.getElementById('pre-activity').value = '';
+  document.getElementById('pre-msg').textContent = '';
+  document.getElementById('pre-msg').className = 'msg';
+  onPreActivityChange();
+}
+
 let myStatusData = null;
 async function loadMyStatus() {
   const name = SESSION.name;
