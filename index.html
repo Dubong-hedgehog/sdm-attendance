@@ -810,28 +810,28 @@ function renderNextActivityHeader(act) {
     });
   }
 }
-  function onActivityChange() {
-    const activityId = document.getElementById('attend-activity').value;
-    const group = document.getElementById('sub-activity-group');
-    const list = document.getElementById('sub-activity-list');
-    list.innerHTML = '';
-    group.style.display = 'none';
-    if (!activityId) return;
-    const act = allActivities.find(a => a['활동ID'] === activityId);
-    if (!act) return;
-    const subItems = act['세부참여항목'];
-    if (subItems && String(subItems).trim() !== '') {
-      const items = String(subItems).split(',').map(s => s.trim()).filter(Boolean);
-      items.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'checkbox-item';
-        div.innerHTML = `<input type="checkbox" id="sub_${item}" value="${item}">
-          <label for="sub_${item}">${item}</label>`;
-        list.appendChild(div);
-      });
-      group.style.display = 'block';
-    }
+function onActivityChange() {
+  const activityId = document.getElementById('attend-activity').value;
+  const group = document.getElementById('sub-activity-group');
+  const list = document.getElementById('sub-activity-list');
+  list.innerHTML = '';
+  group.style.display = 'none';
+  if (!activityId) return;
+  const act = allActivities.find(a => a['활동ID'] === activityId);
+  if (!act) return;
+  const subItems = act['세부참여항목'];
+  if (subItems && String(subItems).trim() !== '') {
+    const items = String(subItems).split(',').map(s => s.trim()).filter(Boolean);
+    items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'checkbox-item';
+      div.innerHTML = `<input type="radio" name="sub-activity-radio" id="sub_${item}" value="${item}">
+        <label for="sub_${item}">${item}</label>`;
+      list.appendChild(div);
+    });
+    group.style.display = 'block';
   }
+}
  
 async function onPreActivityChange() {
     const activityId = document.getElementById('pre-activity').value;
