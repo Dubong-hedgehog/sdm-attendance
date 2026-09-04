@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDM 운영진 관리보드</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(160deg, #eef5f1 0%, #faf9f6 55%, #f5f1ea 100%); min-height: 100vh; padding: 20px; }
+  .container { max-width: 600px; margin: 0 auto; padding-bottom: 24px; }
+  .card { background: #fff; border-radius: 22px; padding: 24px; margin-bottom: 16px; box-shadow: 0 16px 40px rgba(15,80,60,0.10); border: 1px solid rgba(0,0,0,0.03); }
+  .admin-hero { background: linear-gradient(135deg, #1D9E75 0%, #0a7a56 100%); padding: 18px 22px; position: relative; overflow: hidden; box-shadow: 0 16px 34px rgba(15,110,86,0.22); }
+  .admin-hero::after { content:''; position:absolute; width:150px; height:150px; border-radius:50%; right:-55px; top:-65px; background:rgba(255,255,255,0.10); }
+  .admin-hero h1 { color: #fff; }
+  .logout-btn { font-size:11px; font-weight:700; color:#fff; background:rgba(255,255,255,0.18); border:none; padding:6px 12px; border-radius:999px; cursor:pointer; position:relative; z-index:1; }
+  h1 { font-size: 20px; font-weight: 600; color: #1D9E75; text-align: center; margin-bottom: 4px; }
+  h2 { font-size: 16px; font-weight: 500; color: #333; margin-bottom: 16px; }
+  h3 { font-size: 14px; font-weight: 500; color: #555; margin-bottom: 10px; }
+  label { font-size: 13px; color: #666; display: block; margin-bottom: 6px; margin-top: 14px; }
+  input[type=text], input[type=number], select, textarea { width: 100%; padding: 10px 14px; border: 1px solid #e0e0e0; border-radius: 12px; font-size: 14px; outline: none; background: #fbfcfb; }
+  input:focus, select:focus, textarea:focus { border-color: #1D9E75; background:#f9fffe; }
+  textarea { resize: vertical; min-height: 60px; }
+  .btn { width: 100%; padding: 12px; background: #1D9E75; color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 500; margin-top: 14px; cursor: pointer; box-shadow: 0 10px 22px rgba(15,110,86,0.22); }
+  .btn:disabled { background: #ccc; cursor: not-allowed; box-shadow:none; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 9px; border: none; cursor: pointer; font-weight: 500; width: auto; margin-top: 0; }
+  .btn-green { background: #1D9E75; color: #fff; }
+  .btn-red { background: #E24B4A; color: #fff; }
+  .btn-blue { background: #378ADD; color: #fff; }
+  .btn-gray { background: #888; color: #fff; }
+  .btn-outline { background: #fff; color: #1D9E75; border: 1px solid #1D9E75; }
+  .tabs { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 2px 2px 10px; margin-bottom: 6px; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: 0 0 auto; display: flex; flex-direction: row; align-items: center; gap: 5px; padding: 8px 14px; border-radius: 999px; background: #fff; border: 1px solid #eee; color: #888; cursor: pointer; white-space: nowrap; }
+  .tab-icon { font-size: 14px; line-height: 1; }
+  .tab-label { font-size: 12px; font-weight: 600; }
+  .tab.active { color: #fff; font-weight: 700; background: #1D9E75; border-color: #1D9E75; }
+  .section { display: none; }
+  .section.active { display: block; }
+  .msg { text-align: center; padding: 10px; border-radius: 10px; font-size: 13px; margin-top: 10px; display: none; }
+  .msg.success { background: #E1F5EE; color: #0F6E56; display: block; }
+  .msg.error { background: #FCEBEB; color: #A32D2D; display: block; }
+  .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat-card { background: #F3FAF7; border: 1px solid #e2f0e9; border-radius: 14px; padding: 12px; text-align: center; }
+  .stat-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+  .stat-val { font-size: 22px; font-weight: 600; color: #1D9E75; }
+  .list-item { border: 1px solid #eee; border-radius: 14px; padding: 12px; margin-bottom: 8px; box-shadow: 0 6px 16px rgba(20,60,45,0.05); }
+  .list-item-title { font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px; }
+  .list-item-sub { font-size: 12px; color: #888; margin-bottom: 8px; }
+  .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; margin-left: 4px; }
+  .badge-green { background: #E1F5EE; color: #0F6E56; }
+  .badge-red { background: #FCEBEB; color: #A32D2D; }
+  .badge-gray { background: #f0f0f0; color: #666; }
+  .badge-blue { background: #E6F1FB; color: #185FA5; }
+  .toggle-wrap { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .toggle-wrap label { margin: 0; font-size: 13px; color: #555; }
+  input[type=checkbox] { width: 18px; height: 18px; accent-color: #1D9E75; }
+  .select-wrap { position: relative; }
+  .select-wrap::after { content: '▾'; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #888; pointer-events: none; }
+  .divider { border: none; border-top: 1px solid #eee; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f8f8f8; padding: 8px; text-align: left; color: #666; font-weight: 500; border-bottom: 1px solid #eee; }
+  td { padding: 8px; border-bottom: 1px solid #f0f0f0; color: #333; }
+  .empty { text-align: center; padding: 30px; color: #aaa; font-size: 14px; }
+  .login-wrap { max-width: 360px; margin: 60px auto; }
+</style>
+</head>
+<body>
+<div class="container" id="denied-section" style="display:none;">
+  <div class="login-wrap">
+    <div class="card" style="text-align:center;">
+      <h1>접근 불가</h1>
+      <p style="font-size:13px; color:#888; margin-top:10px;" id="denied-msg">대원페이지에서 먼저 로그인해주세요.</p>
+      <button class="btn" onclick="location.href='index.html'">대원페이지로 이동</button>
+    </div>
+  </div>
+</div>
+<div class="container" id="admin-section" style="display:none;">
+<div class="card admin-hero">
+    <div style="display:flex; justify-content:space-between; align-items:center; position:relative; z-index:1;">
+      <h1 style="margin:0;" id="admin-header-title">SDM 운영진</h1>
+      <div style="display:flex; gap:6px;">
+        <button onclick="manualRefresh()" class="logout-btn" id="refresh-btn">🔄 새로고침</button>
+        <button onclick="doLogout()" class="logout-btn">로그아웃</button>
+      </div>
+    </div>
+    <div id="admin-gen-switch-wrap" style="display:none; margin-top:10px; position:relative; z-index:1;">
+      <select id="admin-gen-switch-select" onchange="onAdminGenSwitch()" style="padding:6px 12px; border-radius:999px; border:none; font-size:12px; font-weight:700; color:#1D9E75; background:#fff; cursor:pointer;">
+      </select>
+    </div>
+  </div>
+  <div class="card">
+<div class="tabs">
+      <div class="tab active" onclick="switchTab('dashboard')"><span class="tab-icon">📊</span><span class="tab-label">대시보드</span></div>
+      <div class="tab" onclick="switchTab('member')"><span class="tab-icon">👥</span><span class="tab-label">대원관리</span></div>
+      <div class="tab" onclick="switchTab('activity')"><span class="tab-icon">📅</span><span class="tab-label">활동관리</span></div>
+      <div class="tab" onclick="switchTab('payment')"><span class="tab-icon">💳</span><span class="tab-label">납부관리</span></div>
+      <div class="tab" onclick="switchTab('board')"><span class="tab-icon">💬</span><span class="tab-label">소셜링 신청</span></div>
+      <div class="tab" onclick="switchTab('inventory')"><span class="tab-icon">📦</span><span class="tab-label">재고관리</span></div>
+    </div>
+    <!-- 대시보드 -->
+    <div class="section active" id="section-dashboard">
+     <div id="notice-admin-wrap">
+  <h2>공지사항 관리</h2>
+  <div id="notice-admin-list"></div>
+  <button class="btn-sm btn-outline" style="width:100%; margin-top:10px; padding:10px;" onclick="toggleNoticeNewForm()">+ 공지 작성</button>
+  <div id="notice-new-form" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+    <label style="margin-top:0;">제목</label>
+    <input type="text" id="notice-new-title" placeholder="공지 제목">
+    <label>내용</label>
+    <textarea id="notice-new-content" placeholder="공지 내용"></textarea>
+    <div class="toggle-wrap" style="margin-top:10px;">
+      <input type="checkbox" id="notice-new-pinned">
+      <label for="notice-new-pinned">상단 고정 (대원 앱에 팝업으로 표시)</label>
+    </div>
+    <button class="btn" onclick="addNoticeAdmin()">공지 등록</button>
+    <div class="msg" id="notice-new-msg"></div>
+  </div>
+</div>
+<hr class="divider">
+      <div id="dashboard-content">
+        <div class="empty">불러오는 중...</div>
+      </div>
+    </div>
+    <!-- 대원관리 -->
+    <div class="section" id="section-member">
+      <h2>대원 목록</h2>
+      <div id="member-list"></div>
+      <button class="btn-sm btn-outline" style="width:100%; margin-top:10px; padding:10px;" onclick="toggleDailyMemberForm()">+ 일일대원 추가</button>
+      <div id="daily-member-form" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+        <label style="margin-top:0;">이름</label>
+        <input type="text" id="daily-name" placeholder="홍길동">
+        <label>전화번호</label>
+        <input type="text" id="daily-phone" placeholder="010-0000-0000">
+        <label>활동 선택</label>
+        <div class="select-wrap">
+          <select id="daily-activity"></select>
+        </div>
+        <div class="toggle-wrap" style="margin-top:14px;">
+          <input type="checkbox" id="daily-paid">
+          <label for="daily-paid">활동비 납입 완료</label>
+        </div>
+        <button class="btn" onclick="addDailyMember()">일일대원 추가</button>
+        <div class="msg" id="daily-msg"></div>
+      </div>
+    </div>
+<!-- 활동관리 -->
+    <div class="section" id="section-activity">
+      <h2>활동 목록</h2>
+      <div id="activity-list"></div>
+      <button class="btn-sm btn-outline" style="width:100%; margin-top:10px; padding:10px;" onclick="toggleNewActivityForm()">+ 새 활동 추가</button>
+      <div id="new-activity-form" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+        <label style="margin-top:0;">활동명</label>
+        <input type="text" id="new-act-name" placeholder="7차 쫑파티">
+        <label>날짜</label>
+        <input type="text" id="new-act-date" placeholder="yyyy-mm-dd">
+        <label>정원 (선택, 비워두면 제한 없음)</label>
+        <input type="text" id="new-act-capacity" placeholder="예: 30" inputmode="numeric">
+        <label>사전신청 마감일시 (선택, 비워두면 마감 없음)</label>
+        <input type="datetime-local" id="new-act-deadline">
+        <label>세부참여항목 (쉼표 구분, 없으면 공란)</label>
+        <input type="text" id="new-act-sub" placeholder="활동A,활동B,활동C..">
+        <label>장소명 (세부항목이 여러 개면 콤마로 순서 맞춰 입력)</label>
+        <input type="text" id="new-act-place" placeholder="예: 홍제천 또는 A장소,B장소">
+        <label>주소 (세부항목이 여러 개면 콤마로 순서 맞춰 입력)</label>
+        <input type="text" id="new-act-address" placeholder="예: 서울 서대문구 ... 또는 A주소,B주소">
+        <div class="toggle-wrap" style="margin-top:14px;">
+          <input type="checkbox" id="new-act-extra">
+          <label for="new-act-extra">추가비용 있음</label>
+        </div>
+        <div id="new-act-extra-wrap" style="display:none;">
+        <label>추가비용안내 (| 로 구분 // 은행명 | 예금주 | 계좌번호 | 금액)</label>
+        <input type="text" id="new-act-extra-msg" placeholder="은행명 | 예금주 | 계좌번호 | 10,000원">
+          <label>세부항목추가금 (항목=금액,항목=금액 // 금액은 ,찍지말고 그냥쓰기)</label>
+          <input type="text" id="new-act-extra-items" placeholder="활동A=0,활동B=10000">
+        </div>
+        <div class="toggle-wrap" style="margin-top:14px;">
+          <input type="checkbox" id="new-act-1365">
+          <label for="new-act-1365">1365 활동여부</label>
+        </div>
+        <div class="toggle-wrap" style="margin-top:8px;">
+          <input type="checkbox" id="new-act-active">
+          <label for="new-act-active">즉시 활성화</label>
+        </div>
+        <div class="toggle-wrap" style="margin-top:8px;">
+          <input type="checkbox" id="new-act-count" checked>
+          <label for="new-act-count">개근 집계에 포함 (쫑파티 등은 체크 해제)</label>
+        </div>
+        <button class="btn" onclick="addActivity()">활동 추가</button>
+        <div class="msg" id="activity-msg"></div>
+      </div>
+    </div>
+<!-- 납부관리 -->
+    <div class="section" id="section-payment">
+      <h2>사전신청 납부 현황</h2>
+      <label>활동 선택</label>
+      <div class="select-wrap">
+        <select id="payment-activity" onchange="loadPayment()"></select>
+      </div>
+      <div id="payment-list" style="margin-top:16px;"></div>
+      <hr class="divider">
+      <h2>수동 출석 추가</h2>
+      <label>활동 선택</label>
+      <div class="select-wrap">
+        <select id="manual-activity"></select>
+      </div>
+      <label>이름</label>
+      <input type="text" id="manual-name" placeholder="홍길동">
+      <label>전화번호 뒷 4자리</label>
+      <input type="text" id="manual-phone" placeholder="1234" maxlength="4" inputmode="numeric">
+      <button class="btn" onclick="addManualAttendance()">출석 추가</button>
+      <div class="msg" id="manual-msg"></div>
+    </div>
+    <!-- 소셜링 관리 -->
+    <div class="section" id="section-board">
+      <h2>소셜링 관리</h2>
+      <div id="admin-board-list"></div>
+    </div>
+   <!-- 재고관리 -->
+    <div class="section" id="section-inventory">
+      <h2>현재 재고</h2>
+      <div id="inventory-list"></div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn-sm btn-outline" style="flex:1; padding:10px;" onclick="toggleInventoryTxForm()">+ 입출고 처리</button>
+        <button class="btn-sm btn-outline" style="flex:1; padding:10px;" onclick="toggleNewInventoryItemForm()">+ 새 품목 추가</button>
+      </div>
+      <div id="inventory-tx-form" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+        <label style="margin-top:0;">품목 선택</label>
+        <div class="select-wrap">
+          <select id="inv-tx-item"></select>
+        </div>
+        <label>구분</label>
+        <div class="select-wrap">
+          <select id="inv-tx-type">
+            <option value="입고">입고 (재고 늘리기)</option>
+            <option value="출고">출고 (재고 가져가기)</option>
+          </select>
+        </div>
+        <label>수량</label>
+        <input type="text" id="inv-tx-qty" placeholder="예: 5" inputmode="numeric">
+        <label>수령/반납자 (여러 명이면 쉼표로 구분)</label>
+        <input type="text" id="inv-tx-person" placeholder="예: 홍길동, 김철수">
+        <label>메모 (선택)</label>
+        <input type="text" id="inv-tx-memo" placeholder="예: 9월 정기활동용">
+        <button class="btn" onclick="submitInventoryTx()">처리하기</button>
+        <div class="msg" id="inv-tx-msg"></div>
+      </div>
+      <div id="new-inventory-item-form" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+        <label style="margin-top:0;">품목명</label>
+        <input type="text" id="inv-new-name" placeholder="예: 목장갑">
+        <label>단위</label>
+        <input type="text" id="inv-new-unit" placeholder="예: 개, 박스, 롤">
+        <label>비고 (보관 위치 등 — 나중에 장소 바뀌면 여기서 바로 수정)</label>
+        <input type="text" id="inv-new-note" placeholder="예: 총무 집 보관">
+        <button class="btn" onclick="addInventoryItemWeb()">품목 추가</button>
+        <div class="msg" id="inv-new-msg"></div>
+      </div>
+      <hr class="divider">
+      <h2>최근 입출고 기록</h2>
+      <div id="inventory-log"></div>
+    </div>
+  </div>
+</div>
+<script src="/config.js"></script>
+<script>
+let allActivities = [];
+let allMembers = [];
+let currentGen = '';
+let adminName = '';
+let memberAttendanceStats = {};
+let allAttendance = [];
+
+async function api(body) {
+  const res = await fetch(CONFIG.API_URL, { method: 'POST', body: JSON.stringify(body) });
+  return res.json();
+}
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function showMsg(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.className = 'msg ' + type;
+  setTimeout(() => { el.className = 'msg'; }, 3000);
+}
+function getQueryParam(key) {
+  return new URLSearchParams(location.search).get(key);
+}
+function showDenied(msg) {
+  document.getElementById('denied-msg').textContent = msg;
+  document.getElementById('denied-section').style.display = 'block';
+  document.getElementById('admin-section').style.display = 'none';
+}
+async function initAdmin() {
+  const saved = localStorage.getItem('sdm_session');
+  if (!saved) {
+    showDenied('대원페이지에서 먼저 로그인 후 접속해주세요.');
+    return;
+  }
+  let session;
+  try { session = JSON.parse(saved); } catch(e) { session = null; }
+  if (!session || !session.name || !session.phone4) {
+    showDenied('대원페이지에서 먼저 로그인 후 접속해주세요.');
+    return;
+  }
+  const adminGens = (session.generations || []).filter(g => g.isAdmin).map(g => String(g.generation));
+  if (adminGens.length === 0) {
+    showDenied('운영진 권한이 없습니다.');
+    return;
+  }
+  const sortedGens = adminGens.slice().sort((a, b) => Number(b) - Number(a));
+  const urlGen = getQueryParam('gen');
+  const gen = (urlGen && adminGens.includes(urlGen)) ? urlGen : sortedGens[0];
+  const res = await api({ action: 'verifyAdminAccess', name: session.name, phone4: session.phone4, generation: gen });
+  if (!res.success) {
+    showDenied(res.message || '운영진 권한이 없습니다.');
+    return;
+  }
+  currentGen = gen;
+  adminName = session.name;
+  renderAdminGenSelect(sortedGens);
+  document.getElementById('admin-header-title').textContent = currentGen + '기 SDM 운영진 (' + adminName + ')';
+  document.getElementById('denied-section').style.display = 'none';
+  document.getElementById('admin-section').style.display = 'block';
+  await loadAll();
+}
+function renderAdminGenSelect(gens) {
+  const wrap = document.getElementById('admin-gen-switch-wrap');
+  if (gens.length <= 1) { wrap.style.display = 'none'; return; }
+  const select = document.getElementById('admin-gen-switch-select');
+  select.innerHTML = gens.map(g => `<option value="${g}" ${g === currentGen ? 'selected' : ''}>${g}기</option>`).join('');
+  wrap.style.display = 'block';
+}
+function onAdminGenSwitch() {
+  const gen = document.getElementById('admin-gen-switch-select').value;
+  if (gen === currentGen) return;
+  location.href = 'admin.html?gen=' + encodeURIComponent(gen);
+}
+function doLogout() {
+  localStorage.removeItem('sdm_session');
+  location.href = 'index.html';
+}
+async function manualRefresh() {
+  const btn = document.getElementById('refresh-btn');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ 불러오는 중...';
+  try {
+    await loadAll();
+    btn.textContent = '✓ 완료';
+  } catch (e) {
+    btn.textContent = '실패';
+  }
+  setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 1200);
+}
+function toggleNoticeNewForm() {
+  const el = document.getElementById('notice-new-form');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function toggleDailyMemberForm() {
+  const el = document.getElementById('daily-member-form');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function toggleNewActivityForm() {
+  const el = document.getElementById('new-activity-form');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function toggleInventoryTxForm() {
+  const el = document.getElementById('inventory-tx-form');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function toggleNewInventoryItemForm() {
+  const el = document.getElementById('new-inventory-item-form');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+let allNotices = [];
+async function loadAll() {
+  await loadAttendanceOnce();
+  await loadActivities();
+  await loadMembers();
+  loadDashboard();
+  loadAdminBoardList();
+  loadInventory();
+  loadNoticesAdmin();
+}
+async function loadAttendanceOnce() {
+  const res = await api({ action: 'getAttendance' });
+  allAttendance = res.success ? res.attendance : [];
+}
+
+async function loadNoticesAdmin() {
+  const res = await api({ action: 'getNotices', generation: currentGen });
+  allNotices = res.success ? res.notices : [];
+  renderNoticesAdmin();
+}
+
+function renderNoticesAdmin() {
+  const list = document.getElementById('notice-admin-list');
+  if (allNotices.length === 0) { list.innerHTML = '<div class="empty">등록된 공지가 없어요</div>'; return; }
+  list.innerHTML = allNotices.map((n, i) => `
+    <div class="list-item">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="list-item-title" onclick="toggleNoticeEdit(${i})" style="cursor:pointer; color:#1D9E75; text-decoration:underline;">${esc(n.title)} ${n.pinned ? '<span class="badge badge-green">고정</span>' : ''}</div>
+      </div>
+      <div class="list-item-sub">${esc(n.author || '-')} · ${String(n.createdAt).substring(0,16)}</div>
+      <div class="btn-row">
+        <button class="btn-sm ${n.pinned ? 'btn-gray' : 'btn-green'}" onclick="toggleNoticePinned(${i})">${n.pinned ? '고정 해제' : '상단 고정'}</button>
+        <button class="btn-sm btn-red" onclick="deleteNoticeAdmin('${n.id}')">삭제</button>
+      </div>
+      <div id="notice-edit-${i}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+        <label style="margin-top:0;">제목</label>
+        <input type="text" id="notice-edit-title-${i}" value="${esc(n.title)}">
+        <label>내용</label>
+        <textarea id="notice-edit-content-${i}">${esc(n.content)}</textarea>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn-sm btn-green" style="flex:1; padding:10px;" onclick="saveNoticeEdit(${i})">저장</button>
+          <button class="btn-sm btn-gray" style="flex:1; padding:10px;" onclick="toggleNoticeEdit(${i})">취소</button>
+        </div>
+        <div class="msg" id="notice-edit-msg-${i}"></div>
+      </div>
+    </div>
+  `).join('');
+}
+function toggleNoticeEdit(idx) {
+  const el = document.getElementById(`notice-edit-${idx}`);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+async function saveNoticeEdit(idx) {
+  const n = allNotices[idx];
+  const title = document.getElementById(`notice-edit-title-${idx}`).value.trim();
+  const content = document.getElementById(`notice-edit-content-${idx}`).value.trim();
+  if (!title || !content) { showMsg(`notice-edit-msg-${idx}`, '제목과 내용을 입력해주세요.', 'error'); return; }
+  const res = await api({ action: 'updateNotice', id: n.id, title, content });
+  if (res.success) { await loadNoticesAdmin(); }
+  else { showMsg(`notice-edit-msg-${idx}`, res.message, 'error'); }
+}
+async function toggleNoticePinned(idx) {
+  const n = allNotices[idx];
+  const res = await api({ action: 'updateNotice', id: n.id, pinned: !n.pinned });
+  if (res.success) { await loadNoticesAdmin(); }
+  else { alert(res.message); }
+}
+async function deleteNoticeAdmin(id) {
+  if (!confirm('이 공지를 삭제할까요?')) return;
+  const res = await api({ action: 'deleteNotice', id });
+  if (res.success) { await loadNoticesAdmin(); }
+  else { alert(res.message); }
+}
+async function addNoticeAdmin() {
+  const title = document.getElementById('notice-new-title').value.trim();
+  const content = document.getElementById('notice-new-content').value.trim();
+  const pinned = document.getElementById('notice-new-pinned').checked;
+  if (!title || !content) { showMsg('notice-new-msg', '제목과 내용을 입력해주세요.', 'error'); return; }
+  const res = await api({ action: 'addNotice', generation: currentGen, title, content, author: adminName, pinned });
+  if (res.success) {
+    showMsg('notice-new-msg', '공지사항이 등록되었습니다.', 'success');
+    document.getElementById('notice-new-title').value = '';
+    document.getElementById('notice-new-content').value = '';
+    document.getElementById('notice-new-pinned').checked = false;
+    await loadNoticesAdmin();
+    setTimeout(() => { document.getElementById('notice-new-form').style.display = 'none'; }, 800);
+  } else { showMsg('notice-new-msg', res.message, 'error'); }
+}
+async function loadAdminBoardList() {
+  const list = document.getElementById('admin-board-list');
+  list.innerHTML = '<div class="empty">불러오는 중...</div>';
+  const res = await api({ action: 'getBoardPosts', generation: currentGen });
+  if (!res.success) { list.innerHTML = '<div class="empty">불러오기 실패</div>'; return; }
+  if (res.posts.length === 0) { list.innerHTML = '<div class="empty">등록된 게시글이 없어요</div>'; return; }
+  list.innerHTML = res.posts.map(p => `
+    <div class="list-item">
+      <div class="list-item-title">${esc(p.title)} <span class="badge ${p.status==='매칭완료' ? 'badge-gray' : p.status==='소셜링 취소' ? 'badge-red' : 'badge-green'}">${p.status}</span></div>
+      <div class="list-item-sub">${esc(p.author)} · 최대 ${p.maxPeople}명(호스트 포함)${p.coHost ? ' · 공동호스트: ' + esc(p.coHost) : ''} · ${String(p.createdAt).substring(0,16)}</div>
+      <div class="list-item-sub" style="white-space:pre-wrap;">${esc(p.content)}</div>
+      <div class="btn-row">
+        <button class="btn-sm btn-green" onclick="applyAsCoHost('${p.id}')">공동호스트로 참여하기</button>
+        <select onchange="changeAdminBoardStatus('${p.id}', this.value)">
+          <option value="">상태변경</option>
+          <option value="호스트 모집 중">호스트 모집 중</option>
+          <option value="매칭완료">매칭완료</option>
+          <option value="소셜링 취소">소셜링 취소</option>
+        </select>
+        <button class="btn-sm btn-red" onclick="deleteAdminBoardPost('${p.id}')">삭제</button>
+      </div>
+    </div>
+  `).join('');
+}
+let allInventoryItems = [];
+let allInventoryLogs = [];
+async function loadInventory() {
+  const res = await api({ action: 'getInventoryItems' });
+  if (res.success) {
+    allInventoryItems = res.items;
+    renderInventoryList();
+    populateInventorySelect();
+  }
+  loadInventoryLog();
+}
+function renderInventoryList() {
+  const list = document.getElementById('inventory-list');
+  if (allInventoryItems.length === 0) { list.innerHTML = '<div class="empty">등록된 품목이 없어요</div>'; return; }
+  list.innerHTML = allInventoryItems.map((it, i) => `
+    <div class="list-item">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="list-item-title" style="cursor:pointer; color:#1D9E75; text-decoration:underline;" onclick="toggleItemHistory(${i})">${esc(it['품목명'])}</div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button class="btn-sm btn-gray" style="width:28px; padding:4px 0;" onclick="quickAdjustInventory('${it['품목명']}', -1)">－</button>
+          <span class="badge badge-green" style="min-width:44px; text-align:center;">${it['현재수량']}${it['단위'] || ''}</span>
+          <button class="btn-sm btn-green" style="width:28px; padding:4px 0;" onclick="quickAdjustInventory('${it['품목명']}', 1)">＋</button>
+        </div>
+      </div>
+      ${it['비고'] ? `<div class="list-item-sub">${esc(it['비고'])}</div>` : ''}
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn-sm btn-red" onclick="deleteInventoryItemWeb('${it['품목명']}')">품목 삭제</button>
+      </div>
+      <div id="inv-history-${i}" style="display:none; margin-top:10px; border-top:1px solid #eee; padding-top:10px;"></div>
+    </div>
+  `).join('');
+}
+function toggleItemHistory(idx) {
+  const container = document.getElementById(`inv-history-${idx}`);
+  if (!container) return;
+  const isOpen = container.style.display === 'block';
+  if (isOpen) { container.style.display = 'none'; return; }
+  const item = allInventoryItems[idx];
+  const itemLogs = allInventoryLogs.filter(l => l['품목명'] === item['품목명']).slice(0, 3);
+  container.innerHTML = itemLogs.length === 0
+    ? '<div style="font-size:13px; color:#aaa;">아직 입출고 기록이 없어요</div>'
+    : itemLogs.map(l => `
+        <div style="font-size:12px; color:#666; padding:4px 0; border-bottom:1px solid #f5f5f5;">
+          <span class="badge ${l['구분']==='입고' ? 'badge-green' : 'badge-red'}" style="margin-right:6px;">${l['구분']} ${l['수량']}</span>
+          ${esc(l['반납자'])} · ${String(l['시간']).substring(0,16)}
+        </div>
+      `).join('');
+  container.style.display = 'block';
+}
+async function quickAdjustInventory(name, delta) {
+  const type = delta > 0 ? '입고' : '출고';
+  const person = prompt(type + ' — 가져온/가져간 사람 이름을 입력해주세요.');
+  if (!person || !person.trim()) return;
+  const res = await api({
+    action: 'recordInventoryTransaction',
+    itemName: name, type, quantity: Math.abs(delta),
+    person: person.trim(), operator: adminName, memo: ''
+  });
+  if (res.success) {
+    await loadInventory();
+  } else {
+    alert(res.message);
+  }
+}
+function populateInventorySelect() {
+  const sel = document.getElementById('inv-tx-item');
+  sel.innerHTML = '<option value="">품목 선택</option>';
+  allInventoryItems.forEach(it => {
+    const noteLabel = it['비고'] ? ` - ${it['비고']}` : '';
+    sel.innerHTML += `<option value="${it['품목명']}">${it['품목명']}${noteLabel} (현재 ${it['현재수량']}${it['단위'] || ''})</option>`;
+  });
+}
+async function submitInventoryTx() {
+  const itemName = document.getElementById('inv-tx-item').value;
+  const type = document.getElementById('inv-tx-type').value;
+  const quantity = document.getElementById('inv-tx-qty').value.trim();
+  const person = document.getElementById('inv-tx-person').value.trim();
+  const memo = document.getElementById('inv-tx-memo').value.trim();
+  if (!itemName || !quantity || !person) {
+    showMsg('inv-tx-msg', '품목, 수량, 수령/반납자는 필수예요.', 'error'); return;
+  }
+  const res = await api({ action: 'recordInventoryTransaction', itemName, type, quantity, person, operator: adminName, memo });
+  if (res.success) {
+    showMsg('inv-tx-msg', `처리 완료! 현재 재고: ${res.newQty}`, 'success');
+    document.getElementById('inv-tx-qty').value = '';
+    document.getElementById('inv-tx-person').value = '';
+    document.getElementById('inv-tx-memo').value = '';
+    await loadInventory();
+    setTimeout(() => { document.getElementById('inventory-tx-form').style.display = 'none'; }, 800);
+  } else {
+    showMsg('inv-tx-msg', res.message, 'error');
+  }
+}
+async function addInventoryItemWeb() {
+  const name = document.getElementById('inv-new-name').value.trim();
+  const unit = document.getElementById('inv-new-unit').value.trim();
+  const note = document.getElementById('inv-new-note').value.trim();
+  if (!name) { showMsg('inv-new-msg', '품목명을 입력해주세요.', 'error'); return; }
+  const res = await api({ action: 'addInventoryItem', name, unit, note });
+  if (res.success) {
+    showMsg('inv-new-msg', '품목이 추가되었습니다.', 'success');
+    document.getElementById('inv-new-name').value = '';
+    document.getElementById('inv-new-unit').value = '';
+    document.getElementById('inv-new-note').value = '';
+    await loadInventory();
+    setTimeout(() => { document.getElementById('new-inventory-item-form').style.display = 'none'; }, 800);
+  } else {
+    showMsg('inv-new-msg', res.message, 'error');
+  }
+}
+async function deleteInventoryItemWeb(name) {
+  if (!confirm(`'${name}' 품목을 삭제할까요? 그동안의 입출고 기록은 그대로 남아있어요.`)) return;
+  const res = await api({ action: 'deleteInventoryItem', name });
+  if (res.success) await loadInventory();
+  else alert(res.message);
+}
+async function loadInventoryLog() {
+  const res = await api({ action: 'getInventoryLog' });
+  allInventoryLogs = res.success ? res.logs : [];
+  const list = document.getElementById('inventory-log');
+  if (allInventoryLogs.length === 0) { list.innerHTML = '<div class="empty">기록이 없어요</div>'; return; }
+  list.innerHTML = allInventoryLogs.slice(0, 30).map(l => `
+    <div class="list-item">
+      <div class="list-item-title">${esc(l['품목명'])} <span class="badge ${l['구분']==='입고' ? 'badge-green' : 'badge-red'}">${l['구분']} ${l['수량']}</span></div>
+      <div class="list-item-sub">${esc(l['반납자'])} · 확인: ${esc(l['확인자'] || '-')} · ${String(l['시간']).substring(0,16)}</div>
+      ${l['메모'] ? `<div class="list-item-sub">${esc(l['메모'])}</div>` : ''}
+    </div>
+  `).join('');
+}
+async function applyAsCoHost(id) {
+  const hostName = prompt('공동호스트로 등록할 운영진 이름을 입력해주세요.', adminName);
+  if (!hostName) return;
+  const res = await api({ action: 'applyBoardHost', id, hostName: hostName.trim() });
+  if (res.success) loadAdminBoardList();
+  else alert(res.message);
+}
+
+async function changeAdminBoardStatus(id, status) {
+  if (!status) return;
+  const res = await api({ action: 'updateBoardPostStatus', id, isAdmin: true, status });
+  if (res.success) loadAdminBoardList();
+  else alert(res.message);
+}
+async function deleteAdminBoardPost(id) {
+  if (!confirm('이 게시글을 삭제할까요?')) return;
+  const res = await api({ action: 'deleteBoardPost', id, isAdmin: true });
+  if (res.success) loadAdminBoardList();
+  else alert(res.message);
+}
+
+async function loadActivities() {
+  const res = await api({ action: 'getActivities', generation: currentGen });
+  if (res.success) {
+    allActivities = res.activities;
+    populateActivitySelects();
+    renderActivityList();
+  }
+}
+
+async function loadMembers() {
+  const res = await api({ action: 'getMembers', generation: currentGen });
+  if (res.success) {
+    allMembers = res.members;
+    await loadMemberAttendanceStats();
+    renderMemberList();
+  }
+}
+
+function populateActivitySelects() {
+  const selects = ['daily-activity', 'payment-activity', 'manual-activity'];
+  selects.forEach(id => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">활동 선택</option>';
+    allActivities.forEach(act => {
+      sel.innerHTML += `<option value="${act['활동ID']}">${act['활동명']} (${String(act['날짜']).split('T')[0]})</option>`;
+    });
+  });
+}
+
+async function loadDashboard() {
+  const content = document.getElementById('dashboard-content');
+  content.innerHTML = '<div class="empty">불러오는 중...</div>';
+  try {
+    const attendance = allAttendance;
+    const totalMembers = allMembers.filter(m =>
+      String(m['환불여부']).toUpperCase() !== 'TRUE'
+    ).length;
+    const actMap = {};
+    allActivities.forEach(act => {
+      actMap[act['활동ID']] = { name: act['활동명'], date: String(act['날짜']).split('T')[0], count: 0, is1365: String(act['1365처리여부']).toUpperCase() === 'TRUE' };
+    });
+    attendance.forEach(r => {
+      if (actMap[r['활동ID']]) actMap[r['활동ID']].count++;
+    });
+    const lbRes = await api({ action: 'getLeaderboard', generation: currentGen });
+    const ranking = lbRes.success ? lbRes.ranking : [];
+    const crownCount = ranking.filter(r => r.tier === 'crown').length;
+    let html = await buildNextActivityReadinessCard();
+    html += `
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">총 대원</div>
+          <div class="stat-val">${totalMembers}명</div>
+        </div>
+        <div class="stat-card" onclick="togglePerfectList()" style="cursor:pointer;">
+          <div class="stat-label">출석 랭킹 (클릭)</div>
+          <div class="stat-val green">${crownCount}명 개근</div>
+        </div>
+      </div>`;
+    html += `<div id="perfect-list" style="display:none; background:#f8f8f8; border-radius:10px; padding:12px 14px; margin-bottom:16px;">
+      <div style="font-size:13px; font-weight:500; color:#555; margin-bottom:8px;">출석 랭킹</div>
+      ${ranking.length > 0
+        ? ranking.map(r => `
+          <div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #eee;">
+            <div style="width:20px; text-align:center; font-size:13px; font-weight:700; color:#888;">${r.rank}</div>
+            <div style="width:20px; text-align:center; font-size:16px;">${r.tier === 'crown' ? '👑' : r.tier === 'medal' ? '🥇' : ''}</div>
+            <span style="flex:1; font-size:14px; color:#333; font-weight:500;">${esc(r.name)}</span>
+            <span style="font-size:12px; color:#888;">${r.attended}/${r.total}</span>
+          </div>`).join('')
+        : '<div style="font-size:13px; color:#aaa;">출석 기록이 없어요</div>'
+      }
+    </div>`;
+    html += '<h3>활동별 출석 현황</h3>';
+    Object.entries(actMap).forEach(([activityId, act]) => {
+      html += `
+        <div class="list-item">
+          <div class="list-item-title">${esc(act.name)} <span class="badge badge-gray">${act.date}</span></div>
+          <div class="list-item-sub">출석 ${act.count}명 / 전체 ${totalMembers}명</div>
+          <div class="btn-row">
+            <button class="btn-sm btn-blue" onclick="toggleAttendanceDetail('${activityId}')">출석명단</button>
+            ${act.is1365 ? `<button class="btn-sm btn-green" onclick="download1365('${activityId}', '${act.name}')">1365 내보내기</button>` : ''}
+          </div>
+          <div id="att-detail-${activityId}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;"></div>
+        </div>`;
+    });
+    if (Object.keys(actMap).length === 0) html += '<div class="empty">등록된 활동이 없어요</div>';
+    content.innerHTML = html;
+  } catch(e) { content.innerHTML = '<div class="empty">불러오기 실패</div>'; }
+}
+
+async function buildNextActivityReadinessCard() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const upcoming = allActivities
+    .filter(act => String(act['활성화']).toUpperCase() === 'TRUE')
+    .filter(act => new Date(String(act['날짜']).split('T')[0]) >= today)
+    .sort((a, b) => new Date(String(a['날짜']).split('T')[0]) - new Date(String(b['날짜']).split('T')[0]));
+  if (upcoming.length === 0) return '';
+  const act = upcoming[0];
+  const activityId = act['활동ID'];
+
+  const [preRes, checklistRes] = await Promise.all([
+    api({ action: 'getPreRegister', activityId }),
+    api({ action: 'getChecklist', activityId })
+  ]);
+  const preList = preRes.success ? preRes.preRegister : [];
+  const preCount = preList.length;
+  const unpaidCount = preList.filter(r => String(r['활동비납입']).toUpperCase() !== 'TRUE').length;
+  const items = checklistRes.success ? checklistRes.items : [];
+  const checkedCount = items.filter(it => it.checked).length;
+
+  return `
+    <div class="list-item" style="margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div style="font-size:14px; font-weight:600; color:#333;">다음 활동 준비 현황</div>
+        <span style="font-size:11px; color:#aaa;">${esc(act['활동명'])} · ${String(act['날짜']).split('T')[0]}</span>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+        <div style="background:#F3FAF7; border:1px solid #e2f0e9; border-radius:14px; padding:10px 6px; text-align:center;">
+          <div style="font-size:10px; color:#888; margin-bottom:4px;">사전신청</div>
+          <div style="font-size:18px; font-weight:600; color:#1D9E75;">${preCount}명</div>
+        </div>
+        <div style="background:${unpaidCount > 0 ? '#FCEBEB' : '#F3FAF7'}; border:1px solid ${unpaidCount > 0 ? '#f6d8d8' : '#e2f0e9'}; border-radius:14px; padding:10px 6px; text-align:center;">
+          <div style="font-size:10px; color:${unpaidCount > 0 ? '#a32d2d' : '#888'}; margin-bottom:4px;">미납</div>
+          <div style="font-size:18px; font-weight:600; color:${unpaidCount > 0 ? '#A32D2D' : '#1D9E75'};">${unpaidCount}명</div>
+        </div>
+        <div style="background:#F3FAF7; border:1px solid #e2f0e9; border-radius:14px; padding:10px 6px; text-align:center;">
+          <div style="font-size:10px; color:#888; margin-bottom:4px;">준비물</div>
+          <div style="font-size:18px; font-weight:600; color:#1D9E75;">${checkedCount}/${items.length}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function toggleAttendanceDetail(activityId) {
+  const container = document.getElementById(`att-detail-${activityId}`);
+  if (!container) return;
+  const isOpen = container.style.display === 'block';
+  if (isOpen) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'block';
+  container.innerHTML = '<div class="empty">불러오는 중...</div>';
+  const res = await api({ action: 'getAttendance', activityId });
+  if (!res.success) { container.innerHTML = '<div class="empty">불러오기 실패</div>'; return; }
+  if (res.attendance.length === 0) {
+    container.innerHTML = '<div class="empty">출석자가 없어요</div>';
+    return;
+  }
+  let html = '<table><tr><th>이름</th><th>시간</th><th>구분</th></tr>';
+  res.attendance.forEach(r => {
+    html += `<tr>
+      <td>${esc(r['이름'])}</td>
+      <td style="font-size:11px;">${String(r['출석시간']).substring(0,16)}</td>
+      <td>${String(r['일일대원여부']).toUpperCase() === 'TRUE' ? '<span class="badge badge-blue">일일</span>' : '<span class="badge badge-green">정회원</span>'}</td>
+    </tr>`;
+  });
+  html += '</table>';
+  container.innerHTML = html;
+}
+async function download1365(activityId, actName) {
+  const res = await api({ action: 'get1365List', activityId, generation: currentGen });
+  if (!res.success || res.list.length === 0) { alert('1365 신청 대상자가 없어요.'); return; }
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  document.head.appendChild(script);
+  script.onload = () => {
+    const headers = ['이름', '전화번호', '생년월일', '인식코드', '1365 ID', '카톡입장', '활동비납입', '환불여부'];
+    const rows = res.list.map(r => [
+      r.name, r.phone, r.birth,
+      r.code == 1 ? '운영진' : '일반대원',
+      r.id1365, r.kakao, r.paid, r.refund
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws['!cols'] = [
+      { wch: 10 }, { wch: 16 }, { wch: 12 }, { wch: 10 },
+      { wch: 16 }, { wch: 8 }, { wch: 10 }, { wch: 8 }
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '1365신청대상자');
+    XLSX.writeFile(wb, `1365_${actName}.xlsx`);
+  };
+}
+
+function renderMemberList() {
+  const list = document.getElementById('member-list');
+  if (allMembers.length === 0) { list.innerHTML = '<div class="empty">대원이 없어요</div>'; return; }
+  list.innerHTML = allMembers.map((m, i) => {
+    const isRefund = String(m['환불여부']).toUpperCase() === 'TRUE';
+    const stat = memberAttendanceStats[m['이름']] || { total: 0, attended: 0 };
+    return `
+    <div class="list-item" ${isRefund ? 'style="opacity:0.5;"' : ''}>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="list-item-title">${esc(m['이름'])} ${m.isNew ? '❤️' : ''} <span style="font-size:12px; color:#888; font-weight:400;">(${stat.total}/${stat.attended})</span> ${isRefund ? '<span class="badge badge-red">환불</span>' : ''}</div>
+        <div style="text-align:right;">
+          <span style="font-size:12px; color:#888;">${esc(m['전화번호'])}</span><br>
+          <button class="btn-sm btn-gray" style="margin-top:4px; padding:2px 8px;" onclick="toggleEditMember(${i})" title="정보 수정">✏️</button>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn-sm ${String(m['카톡입장']).toUpperCase()==='TRUE' ? 'btn-green' : 'btn-gray'}"
+          onclick="toggleMember(${i}, '카톡입장')">카톡 ${String(m['카톡입장']).toUpperCase()==='TRUE' ? '✓' : '✗'}</button>
+        <button class="btn-sm ${String(m['활동비납입']).toUpperCase()==='TRUE' ? 'btn-green' : 'btn-gray'}"
+          onclick="toggleMember(${i}, '활동비납입')">활동비 ${String(m['활동비납입']).toUpperCase()==='TRUE' ? '✓' : '✗'}</button>
+        <button class="btn-sm ${String(m['환불여부']).toUpperCase()==='TRUE' ? 'btn-red' : 'btn-gray'}"
+          onclick="toggleMember(${i}, '환불여부')">환불 ${String(m['환불여부']).toUpperCase()==='TRUE' ? '✓' : '✗'}</button>
+      </div>
+      <div id="edit-member-${i}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+        <label style="margin-top:0;">이름</label>
+        <input type="text" id="edit-member-name-${i}" value="${esc(m['이름'])}">
+        <label>전화번호 (바꿀 때만 입력, 비워두면 유지)</label>
+        <input type="text" id="edit-member-phone-${i}" placeholder="${esc(m['전화번호'])}">
+        <label>생년월일</label>
+        <input type="text" id="edit-member-birth-${i}" value="${esc(m['생년월일'] || '')}">
+        <label>인식코드</label>
+        <input type="text" id="edit-member-code-${i}" value="${esc(m['인식코드'] || '')}">
+        <label>1365 ID</label>
+        <input type="text" id="edit-member-1365-${i}" value="${esc(m['1365 ID'] || '')}">
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn-sm btn-green" style="flex:1; padding:10px;" onclick="saveEditMember(${i})">저장</button>
+          <button class="btn-sm btn-gray" style="flex:1; padding:10px;" onclick="toggleEditMember(${i})">취소</button>
+        </div>
+        <div class="msg" id="edit-member-msg-${i}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleEditMember(idx) {
+  const el = document.getElementById(`edit-member-${idx}`);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+async function saveEditMember(idx) {
+  const m = allMembers[idx];
+  let curName = m['이름'];
+  let curPhone4 = String(m['전화번호']).replace(/-/g, '').replace(/\*/g, '').slice(-4);
+  const newName = document.getElementById(`edit-member-name-${idx}`).value.trim();
+  const newPhoneRaw = document.getElementById(`edit-member-phone-${idx}`).value.trim();
+  const newBirth = document.getElementById(`edit-member-birth-${idx}`).value.trim();
+  const newCode = document.getElementById(`edit-member-code-${idx}`).value.trim();
+  const new1365 = document.getElementById(`edit-member-1365-${idx}`).value.trim();
+  if (!newName) { showMsg(`edit-member-msg-${idx}`, '이름은 필수예요.', 'error'); return; }
+  const changes = [];
+  if (newName !== m['이름']) changes.push({ field: '이름', value: newName });
+  if (newPhoneRaw) changes.push({ field: '전화번호', value: newPhoneRaw });
+  if (newBirth !== (m['생년월일'] || '')) changes.push({ field: '생년월일', value: newBirth });
+  if (newCode !== String(m['인식코드'] || '')) changes.push({ field: '인식코드', value: newCode });
+  if (new1365 !== (m['1365 ID'] || '')) changes.push({ field: '1365 ID', value: new1365 });
+  if (changes.length === 0) { toggleEditMember(idx); return; }
+  for (const change of changes) {
+    const res = await api({ action: 'updateMember', name: curName, phone4: curPhone4, field: change.field, value: change.value, generation: currentGen });
+    if (!res.success) {
+      showMsg(`edit-member-msg-${idx}`, res.message, 'error');
+      return;
+    }
+    if (change.field === '이름') curName = change.value;
+    if (change.field === '전화번호') curPhone4 = String(change.value).replace(/-/g, '').slice(-4);
+  }
+  await loadMembers();
+}
+async function toggleMember(idx, field) {
+  const m = allMembers[idx];
+  const current = String(m[field]).toUpperCase() === 'TRUE';
+  const newVal = !current ? 'TRUE' : 'FALSE';
+  const phone4 = String(m['전화번호']).replace(/-/g, '').replace(/\*/g, '').slice(-4);
+  const res = await api({ action: 'updateMember', name: m['이름'], phone4, field, value: newVal, generation: currentGen });
+  if (res.success) { allMembers[idx][field] = newVal; renderMemberList(); }
+  else alert(res.message);
+}
+
+function renderActivityList() {
+  const list = document.getElementById('activity-list');
+  if (allActivities.length === 0) { list.innerHTML = '<div class="empty">등록된 활동이 없어요</div>'; return; }
+  list.innerHTML = allActivities.map((act, i) => {
+    const active = String(act['활성화']).toUpperCase() === 'TRUE';
+    const is1365 = String(act['1365처리여부']).toUpperCase() === 'TRUE';
+    const countAttendance = String(act['개근집계여부']).toUpperCase() !== 'FALSE';
+    const capacityLabel = act['정원'] ? `· 정원 ${act['정원']}명` : '';
+    const deadlineLabel = act['마감일시'] ? `· 마감 ${String(act['마감일시']).replace('T',' ')}` : '';
+    return `
+    <div class="list-item" id="act-item-${i}">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="list-item-title" onclick="toggleEditActivity(${i})" style="cursor:pointer; color:#1D9E75; text-decoration:underline;">${esc(act['활동명'])}</div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="badge ${active ? 'badge-green' : 'badge-gray'}">${active ? '활성' : '비활성'}</span>
+          <button class="btn-sm btn-blue" onclick="toggleChecklist(${i})" title="준비물 체크리스트">+</button>
+        </div>
+      </div>
+      <div class="list-item-sub">${String(act['날짜']).split('T')[0]} ${is1365 ? '· <span style="color:#378ADD;">1365</span>' : ''} ${!countAttendance ? '· <span style="color:#E24B4A;">개근제외</span>' : ''} ${capacityLabel} ${deadlineLabel}</div>
+      <div class="btn-row">
+        <button class="btn-sm ${active ? 'btn-red' : 'btn-green'}" onclick="toggleActivity(${i})">${active ? '비활성화' : '활성화'}</button>
+      </div>
+      <div id="edit-activity-${i}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+        <label style="margin-top:0;">활동명</label>
+        <input type="text" id="edit-name-${i}" value="${esc(act['활동명'])}">
+        <label>날짜</label>
+        <input type="text" id="edit-date-${i}" value="${String(act['날짜']).split('T')[0]}">
+        <label>정원 (선택, 비워두면 제한 없음)</label>
+        <input type="text" id="edit-capacity-${i}" value="${act['정원'] || ''}">
+        <label>사전신청 마감일시 (선택)</label>
+        <input type="datetime-local" id="edit-deadline-${i}" value="${act['마감일시'] || ''}">
+        <label>세부참여항목 (쉼표 구분)</label>
+        <input type="text" id="edit-sub-${i}" value="${esc(act['세부참여항목'] || '')}">
+        <label>장소명 (세부항목이 여러 개면 콤마로 순서 맞춰 입력)</label>
+        <input type="text" id="edit-place-${i}" value="${esc(act['장소명'] || '')}" placeholder="예: 홍제천 또는 A장소,B장소">
+        <label>주소 (세부항목이 여러 개면 콤마로 순서 맞춰 입력)</label>
+        <input type="text" id="edit-address-${i}" value="${esc(act['주소'] || '')}" placeholder="예: 서울 서대문구 ... 또는 A주소,B주소">
+        <label>카카오톡 오픈채팅 링크 (푸시 알림 클릭 시 이동)</label>
+        <input type="text" id="edit-kakao-${i}" value="${esc(act['카카오톡링크'] || '')}" placeholder="https://open.kakao.com/o/...">
+        <label>알림 문구 (비워두면 기본 문구로 발송)</label>
+        <input type="text" id="edit-pushmsg-${i}" value="${esc(act['알림문구'] || '')}" placeholder="내일 활동 있어요! 사전신청하신 분들은 확인해주세요">
+        <div class="toggle-wrap" style="margin-top:12px;">
+          <input type="checkbox" id="edit-extra-${i}" ${String(act['추가비용여부']).toUpperCase()==='TRUE' ? 'checked' : ''} onchange="toggleEditExtra(${i})">
+          <label for="edit-extra-${i}">추가비용 있음</label>
+        </div>
+        <div id="edit-extra-wrap-${i}" style="display:${String(act['추가비용여부']).toUpperCase()==='TRUE' ? 'block' : 'none'};">
+          <label>추가비용안내 (| 로 구분)</label>
+          <input type="text" id="edit-extra-msg-${i}" value="${esc(act['추가비용안내'] || '')}">
+          <label>세부항목추가금</label>
+          <input type="text" id="edit-extra-items-${i}" value="${esc(act['세부항목추가금'] || '')}">
+        </div>
+        <div class="toggle-wrap" style="margin-top:12px;">
+          <input type="checkbox" id="edit-1365-${i}" ${String(act['1365처리여부']).toUpperCase()==='TRUE' ? 'checked' : ''}>
+          <label for="edit-1365-${i}">1365 처리 활동</label>
+        </div>
+        <div class="toggle-wrap" style="margin-top:8px;">
+          <input type="checkbox" id="edit-active-${i}" ${active ? 'checked' : ''}>
+          <label for="edit-active-${i}">활성화</label>
+        </div>
+        <div class="toggle-wrap" style="margin-top:8px;">
+          <input type="checkbox" id="edit-count-${i}" ${countAttendance ? 'checked' : ''}>
+          <label for="edit-count-${i}">개근 집계에 포함</label>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn-sm btn-green" style="flex:1; padding:10px;" onclick="saveEditActivity(${i})">저장</button>
+          <button class="btn-sm btn-gray" style="flex:1; padding:10px;" onclick="toggleEditActivity(${i})">취소</button>
+        </div>
+        <div class="msg" id="edit-act-msg-${i}"></div>
+      </div>
+      <div id="checklist-${i}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+        <div id="checklist-items-${i}"></div>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          <input type="text" id="checklist-input-${i}" placeholder="준비물 입력" style="flex:1; padding:8px 12px; font-size:13px;">
+          <button class="btn-sm btn-green" onclick="addChecklistItem(${i})">추가</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleActivity(idx) {
+  const act = allActivities[idx];
+  const current = String(act['활성화']).toUpperCase() === 'TRUE';
+  const res = await api({ action: 'updateActivity', activityId: act['활동ID'], active: !current });
+  if (res.success) { allActivities[idx]['활성화'] = !current ? 'TRUE' : 'FALSE'; renderActivityList(); }
+  else alert(res.message);
+}
+
+async function addActivity() {
+  const name = document.getElementById('new-act-name').value.trim();
+  const date = document.getElementById('new-act-date').value.trim();
+  const capacity = document.getElementById('new-act-capacity').value.trim();
+  const deadline = document.getElementById('new-act-deadline').value;
+  const sub = document.getElementById('new-act-sub').value.trim();
+  const placeName = document.getElementById('new-act-place').value.trim();
+  const address = document.getElementById('new-act-address').value.trim();
+  const hasExtra = document.getElementById('new-act-extra').checked;
+  const extraMsg = document.getElementById('new-act-extra-msg').value.trim();
+  const extraItems = document.getElementById('new-act-extra-items').value.trim();
+  const is1365 = document.getElementById('new-act-1365').checked;
+  const active = document.getElementById('new-act-active').checked;
+  const countAttendance = document.getElementById('new-act-count').checked;
+  if (!name || !date) { showMsg('activity-msg', '활동명과 날짜는 필수예요.', 'error'); return; }
+  const res = await api({
+    action: 'addActivity', name, date,
+    generation: currentGen, subItems: sub,
+    capacity, deadline,
+    placeName, address,
+    extraFlag: hasExtra ? 'TRUE' : 'FALSE',
+    extraMsg: extraMsg, extraItems: extraItems,
+    is1365: is1365 ? 'TRUE' : 'FALSE', active, countAttendance
+  });
+  if (res.success) {
+    showMsg('activity-msg', '활동이 추가되었습니다.', 'success');
+    document.getElementById('new-act-capacity').value = '';
+    document.getElementById('new-act-deadline').value = '';
+    document.getElementById('new-act-place').value = '';
+    document.getElementById('new-act-address').value = '';
+    await loadActivities();
+    setTimeout(() => { document.getElementById('new-activity-form').style.display = 'none'; }, 800);
+  } else { showMsg('activity-msg', res.message, 'error'); }
+}
+
+async function addDailyMember() {
+  const name = document.getElementById('daily-name').value.trim();
+  const phone = document.getElementById('daily-phone').value.trim();
+  const activityId = document.getElementById('daily-activity').value;
+  const paid = document.getElementById('daily-paid').checked;
+  if (!name || !phone || !activityId) { showMsg('daily-msg', '모든 항목을 입력해주세요.', 'error'); return; }
+  const res = await api({ action: 'addDailyMember', name, phone, activityId, generation: currentGen, paid });
+  if (res.success) {
+    showMsg('daily-msg', '일일대원이 추가되었습니다.', 'success');
+    document.getElementById('daily-name').value = '';
+    document.getElementById('daily-phone').value = '';
+    setTimeout(() => { document.getElementById('daily-member-form').style.display = 'none'; }, 800);
+  } else { showMsg('daily-msg', res.message, 'error'); }
+}
+
+async function loadPayment() {
+  const activityId = document.getElementById('payment-activity').value;
+  if (!activityId) return;
+  const res = await api({ action: 'getPreRegister', activityId });
+  const list = document.getElementById('payment-list');
+  if (!res.success || res.preRegister.length === 0) {
+    list.innerHTML = '<div class="empty">사전신청자가 없어요</div>'; return;
+  }
+  list.innerHTML = res.preRegister.map(r => {
+    const paid = String(r['활동비납입']).toUpperCase() === 'TRUE';
+    const phone4 = String(r['전화번호']).replace(/-/g,'').slice(-4);
+    return `
+    <div class="list-item">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="list-item-title">${esc(r['이름'])}</div>
+        <span class="badge ${paid ? 'badge-green' : 'badge-red'}">${paid ? '납부완료' : '미납'}</span>
+      </div>
+      <div class="list-item-sub">신청: ${String(r['신청시간']).substring(0,16)} ${r['세부항목납부'] ? '· ' + esc(r['세부항목납부']) : ''}</div>
+      <button class="btn-sm ${paid ? 'btn-gray' : 'btn-green'}" onclick="togglePayment('${activityId}','${r['이름']}','${phone4}',${paid})">
+        ${paid ? '납부취소' : '납부확인'}
+      </button>
+    </div>`;
+  }).join('');
+}
+async function togglePayment(activityId, name, phone4, currentPaid) {
+  const res = await api({ action: 'updatePayment', activityId, name, phone4, paid: !currentPaid });
+  if (res.success) loadPayment();
+  else alert(res.message);
+}
+async function addManualAttendance() {
+  const activityId = document.getElementById('manual-activity').value;
+  const name = document.getElementById('manual-name').value.trim();
+  const phone4 = document.getElementById('manual-phone').value.trim();
+  if (!activityId || !name || phone4.length !== 4) { showMsg('manual-msg', '모든 항목을 정확히 입력해주세요.', 'error'); return; }
+  const res = await api({ action: 'addManualAttendance', name, phone4, activityId, generation: currentGen });
+  if (res.success) {
+    showMsg('manual-msg', '출석이 추가되었습니다.', 'success');
+    document.getElementById('manual-name').value = '';
+    document.getElementById('manual-phone').value = '';
+  } else { showMsg('manual-msg', res.message, 'error'); }
+}
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active',
+      (i===0&&tab==='dashboard')||(i===1&&tab==='member')||
+      (i===2&&tab==='activity')||(i===3&&tab==='payment')||
+      (i===4&&tab==='board')||(i===5&&tab==='inventory')
+    );
+  });
+  ['dashboard','member','activity','payment','board','inventory'].forEach(t => {
+    document.getElementById('section-'+t).classList.toggle('active', t===tab);
+  });
+}
+document.getElementById('new-act-extra').addEventListener('change', function() {
+  document.getElementById('new-act-extra-wrap').style.display = this.checked ? 'block' : 'none';
+});
+ async function toggleChecklist(idx) {
+  const wrap = document.getElementById(`checklist-${idx}`);
+  const isHidden = wrap.style.display === 'none';
+  if (isHidden) {
+    wrap.style.display = 'block';
+    await loadChecklist(idx);
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+async function loadChecklist(idx) {
+  const act = allActivities[idx];
+  const res = await api({ action: 'getChecklist', activityId: act['활동ID'] });
+  if (!res.success) return;
+  renderChecklist(idx, res.items);
+}
+function renderChecklist(idx, items) {
+  const container = document.getElementById(`checklist-items-${idx}`);
+  if (items.length === 0) {
+    container.innerHTML = '<div style="font-size:13px; color:#aaa; padding:4px 0;">준비물이 없어요. 아래에서 추가해주세요!</div>';
+    return;
+  }
+  container.innerHTML = items.map((item, j) => `
+    <div id="checklist-row-${idx}-${j}" style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #f5f5f5;">
+      <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleCheckItem(${idx},${j},this.checked)" style="width:18px; height:18px;">
+      <span style="flex:1; font-size:14px; ${item.checked ? 'text-decoration:line-through; color:#aaa;' : 'color:#333;'}">${item.name}</span>
+      <div style="display:flex; gap:4px;">
+        <button class="btn-sm btn-gray" onclick="moveCheckItem(${idx},${j},-1)" ${j===0 ? 'disabled' : ''}>↑</button>
+        <button class="btn-sm btn-gray" onclick="moveCheckItem(${idx},${j},1)" ${j===items.length-1 ? 'disabled' : ''}>↓</button>
+        <button class="btn-sm btn-red" onclick="deleteCheckItem(${idx},${j})">삭제</button>
+      </div>
+    </div>`).join('');
+}
+async function addChecklistItem(idx) {
+  const input = document.getElementById(`checklist-input-${idx}`);
+  const name = input.value.trim();
+  if (!name) return;
+  const act = allActivities[idx];
+  const res = await api({ action: 'getChecklist', activityId: act['활동ID'] });
+  const items = res.success ? res.items : [];
+  items.push({ name, checked: false });
+  const saveRes = await api({ action: 'saveChecklist', activityId: act['활동ID'], items });
+  if (saveRes.success) { input.value = ''; renderChecklist(idx, items); }
+}
+async function toggleCheckItem(idx, j, checked) {
+  const act = allActivities[idx];
+  const res = await api({ action: 'getChecklist', activityId: act['활동ID'] });
+  if (!res.success) return;
+  res.items[j].checked = checked;
+  await api({ action: 'saveChecklist', activityId: act['활동ID'], items: res.items });
+  renderChecklist(idx, res.items);
+}
+async function moveCheckItem(idx, j, dir) {
+  const act = allActivities[idx];
+  const res = await api({ action: 'getChecklist', activityId: act['활동ID'] });
+  if (!res.success) return;
+  const items = res.items;
+  const newJ = j + dir;
+  if (newJ < 0 || newJ >= items.length) return;
+  [items[j], items[newJ]] = [items[newJ], items[j]];
+  await api({ action: 'saveChecklist', activityId: act['활동ID'], items });
+  renderChecklist(idx, items);
+}
+async function deleteCheckItem(idx, j) {
+  if (!confirm('삭제할까요?')) return;
+  const act = allActivities[idx];
+  const res = await api({ action: 'getChecklist', activityId: act['활동ID'] });
+  if (!res.success) return;
+  res.items.splice(j, 1);
+  await api({ action: 'saveChecklist', activityId: act['활동ID'], items: res.items });
+  renderChecklist(idx, res.items);
+}
+ function toggleEditActivity(idx) {
+  const wrap = document.getElementById(`edit-activity-${idx}`);
+  wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+}
+function toggleEditExtra(idx) {
+  const checked = document.getElementById(`edit-extra-${idx}`).checked;
+  document.getElementById(`edit-extra-wrap-${idx}`).style.display = checked ? 'block' : 'none';
+}
+async function saveEditActivity(idx) {
+  const act = allActivities[idx];
+  const name = document.getElementById(`edit-name-${idx}`).value.trim();
+  const date = document.getElementById(`edit-date-${idx}`).value.trim();
+  const capacity = document.getElementById(`edit-capacity-${idx}`).value.trim();
+  const deadline = document.getElementById(`edit-deadline-${idx}`).value;
+  const sub = document.getElementById(`edit-sub-${idx}`).value.trim();
+  const placeName = document.getElementById(`edit-place-${idx}`).value.trim();
+  const address = document.getElementById(`edit-address-${idx}`).value.trim();
+  const kakaoLink = document.getElementById(`edit-kakao-${idx}`).value.trim();
+  const pushMsg = document.getElementById(`edit-pushmsg-${idx}`).value.trim();
+  const hasExtra = document.getElementById(`edit-extra-${idx}`).checked;
+  const extraMsg = document.getElementById(`edit-extra-msg-${idx}`).value.trim();
+  const extraItems = document.getElementById(`edit-extra-items-${idx}`).value.trim();
+  const is1365 = document.getElementById(`edit-1365-${idx}`).checked;
+  const active = document.getElementById(`edit-active-${idx}`).checked;
+  const countAttendance = document.getElementById(`edit-count-${idx}`).checked;
+  if (!name || !date) { showMsg(`edit-act-msg-${idx}`, '활동명과 날짜는 필수예요.', 'error'); return; }
+  const res = await api({
+    action: 'updateActivity',
+    activityId: act['활동ID'],
+    name, date,
+    capacity, deadline,
+    subItems: sub,
+    placeName, address,
+    kakaoLink, pushMsg,
+    extraFlag: hasExtra ? 'TRUE' : 'FALSE',
+    extraMsg, extraItems,
+    is1365: is1365 ? 'TRUE' : 'FALSE',
+    active, countAttendance
+  });
+  if (res.success) {
+    allActivities[idx] = {
+      ...act, '활동명': name, '날짜': date, '세부참여항목': sub,
+      '정원': capacity, '마감일시': deadline,
+      '장소명': placeName, '주소': address,
+      '카카오톡링크': kakaoLink, '알림문구': pushMsg,
+      '추가비용여부': hasExtra ? 'TRUE' : 'FALSE',
+      '추가비용안내': extraMsg, '세부항목추가금': extraItems,
+      '1365처리여부': is1365 ? 'TRUE' : 'FALSE',
+      '활성화': active ? 'TRUE' : 'FALSE',
+      '개근집계여부': countAttendance ? 'TRUE' : 'FALSE'
+    };
+    renderActivityList();
+  } else {
+    showMsg(`edit-act-msg-${idx}`, res.message, 'error');
+  }
+}
+ function togglePerfectList() {
+  const el = document.getElementById('perfect-list');
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+     // 개근 수 확인
+ function getCountedPastActivityIds() {
+  const countedActivities = allActivities.filter(act =>
+    String(act['개근집계여부']).toUpperCase() !== 'FALSE'
+  );
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const pastActivities = countedActivities.filter(act => {
+    const actDate = new Date(String(act['날짜']).split('T')[0]);
+    return actDate <= today;
+  });
+  return new Set(pastActivities.map(a => a['활동ID']));
+}
+      // 개근 수 표기
+async function loadMemberAttendanceStats() {
+  const attendance = allAttendance;
+  const countedIds = getCountedPastActivityIds();
+  const total = countedIds.size;
+  const attendedMap = {};
+  attendance.forEach(r => {
+    if (countedIds.has(r['활동ID'])) {
+      if (!attendedMap[r['이름']]) attendedMap[r['이름']] = new Set();
+      attendedMap[r['이름']].add(r['활동ID']);
+    }
+  });
+  memberAttendanceStats = {};
+  allMembers.forEach(m => {
+    const name = m['이름'];
+    memberAttendanceStats[name] = {
+      total,
+      attended: attendedMap[name] ? attendedMap[name].size : 0
+    };
+  });
+}
+initAdmin();
+</script>
+</body>
+</html>
