@@ -622,17 +622,19 @@ async function submitInventoryTx() {
     showMsg('inv-tx-msg', '품목, 수량, 수령/반납자는 필수예요.', 'error'); return;
   }
   const photoFile = document.getElementById('inv-tx-photo').files[0];
-  let imageBase64 = '', mimeType = '';
+  let imageBase64 = '', mimeType = '', thumbBase64 = '';
   if (photoFile) {
     try {
       const compressed = await compressImageFile(photoFile);
       imageBase64 = compressed.base64;
       mimeType = compressed.mimeType;
+      const thumb = await compressImageFile(photoFile, 320, 0.6);
+      thumbBase64 = thumb.base64;
     } catch (e) {
       showMsg('inv-tx-msg', '사진 처리 중 오류가 발생했어요.', 'error'); return;
     }
   }
-  const res = await api({ action: 'recordInventoryTransaction', itemName, type, quantity, person, operator: adminName, memo, imageBase64, mimeType });
+  const res = await api({ action: 'recordInventoryTransaction', itemName, type, quantity, person, operator: adminName, memo, imageBase64, mimeType, thumbBase64 });
   if (res.success) {
     showMsg('inv-tx-msg', `처리 완료! 현재 재고: ${res.newQty}`, 'success');
     document.getElementById('inv-tx-qty').value = '';
@@ -651,17 +653,19 @@ async function addInventoryItemWeb() {
   const note = document.getElementById('inv-new-note').value.trim();
   if (!name) { showMsg('inv-new-msg', '품목명을 입력해주세요.', 'error'); return; }
   const photoFile = document.getElementById('inv-new-photo').files[0];
-  let imageBase64 = '', mimeType = '';
+  let imageBase64 = '', mimeType = '', thumbBase64 = '';
   if (photoFile) {
     try {
       const compressed = await compressImageFile(photoFile);
       imageBase64 = compressed.base64;
       mimeType = compressed.mimeType;
+      const thumb = await compressImageFile(photoFile, 320, 0.6);
+      thumbBase64 = thumb.base64;
     } catch (e) {
       showMsg('inv-new-msg', '사진 처리 중 오류가 발생했어요.', 'error'); return;
     }
   }
-  const res = await api({ action: 'addInventoryItem', name, unit, note, imageBase64, mimeType, operator: adminName });
+  const res = await api({ action: 'addInventoryItem', name, unit, note, imageBase64, mimeType, thumbBase64, operator: adminName });
   if (res.success) {
     showMsg('inv-new-msg', res.message || '품목이 추가되었습니다.', 'success');
     document.getElementById('inv-new-name').value = '';
