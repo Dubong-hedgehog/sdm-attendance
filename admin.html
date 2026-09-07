@@ -224,7 +224,13 @@
         <label>메모 (선택)</label>
         <input type="text" id="inv-tx-memo" placeholder="예: 9월 정기활동용">
         <label>사진 (선택 — 올리면 이 품목 사진첩에 추가돼요)</label>
-        <input type="file" accept="image/*" id="inv-tx-photo">
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn-sm btn-outline" style="flex:1; padding:10px;" onclick="document.getElementById('inv-tx-photo-camera').click()">📷 촬영</button>
+          <button type="button" class="btn-sm btn-outline" style="flex:1; padding:10px;" onclick="document.getElementById('inv-tx-photo-gallery').click()">🖼 앨범에서 선택</button>
+        </div>
+        <input type="file" accept="image/*" capture="environment" id="inv-tx-photo-camera" style="display:none;" onchange="onInventoryPhotoSelected(this, 'tx')">
+        <input type="file" accept="image/*" id="inv-tx-photo-gallery" style="display:none;" onchange="onInventoryPhotoSelected(this, 'tx')">
+        <div id="inv-tx-photo-preview" style="margin-top:8px;"></div>
         <button class="btn" onclick="submitInventoryTx()">처리하기</button>
         <div class="msg" id="inv-tx-msg"></div>
       </div>
@@ -236,7 +242,13 @@
         <label>비고 (보관 위치 등 — 나중에 장소 바뀌면 여기서 바로 수정)</label>
         <input type="text" id="inv-new-note" placeholder="예: 총무 집 보관">
         <label>사진 (선택 — 안 넣어도 등록할 수 있어요)</label>
-        <input type="file" accept="image/*" id="inv-new-photo">
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn-sm btn-outline" style="flex:1; padding:10px;" onclick="document.getElementById('inv-new-photo-camera').click()">📷 촬영</button>
+          <button type="button" class="btn-sm btn-outline" style="flex:1; padding:10px;" onclick="document.getElementById('inv-new-photo-gallery').click()">🖼 앨범에서 선택</button>
+        </div>
+        <input type="file" accept="image/*" capture="environment" id="inv-new-photo-camera" style="display:none;" onchange="onInventoryPhotoSelected(this, 'new')">
+        <input type="file" accept="image/*" id="inv-new-photo-gallery" style="display:none;" onchange="onInventoryPhotoSelected(this, 'new')">
+        <div id="inv-new-photo-preview" style="margin-top:8px;"></div>
         <button class="btn" onclick="addInventoryItemWeb()">품목 추가</button>
         <div class="msg" id="inv-new-msg"></div>
       </div>
@@ -498,6 +510,35 @@ async function loadAdminSuggestions() {
 let allInventoryItems = [];
 let allInventoryLogs = [];
 let allInventoryPhotos = [];
+let invNewPhotoFile = null;
+let invTxPhotoFile = null;
+ 
+function onInventoryPhotoSelected(inputEl, targetKey) {
+  const file = inputEl.files[0];
+  if (!file) return;
+  if (targetKey === 'new') invNewPhotoFile = file; else invTxPhotoFile = file;
+  const previewId = targetKey === 'new' ? 'inv-new-photo-preview' : 'inv-tx-photo-preview';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById(previewId).innerHTML =
+      `<div style="display:flex; align-items:center; gap:8px;"><img src="${e.target.result}" style="width:56px; height:56px; object-fit:cover; border-radius:6px;"><button type="button" class="btn-sm btn-gray" onclick="clearInventoryPhoto('${targetKey}')">✕ 제거</button></div>`;
+  };
+  reader.readAsDataURL(file);
+}
+function clearInventoryPhoto(targetKey) {
+  if (targetKey === 'new') {
+    invNewPhotoFile = null;
+    document.getElementById('inv-new-photo-camera').value = '';
+    document.getElementById('inv-new-photo-gallery').value = '';
+    document.getElementById('inv-new-photo-preview').innerHTML = '';
+  } else {
+    invTxPhotoFile = null;
+    document.getElementById('inv-tx-photo-camera').value = '';
+    document.getElementById('inv-tx-photo-gallery').value = '';
+    document.getElementById('inv-tx-photo-preview').innerHTML = '';
+  }
+}
+ 
 function compressImageFile(file, maxWidth = 1280, quality = 0.75) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -621,14 +662,13 @@ async function submitInventoryTx() {
   if (!itemName || !quantity || !person) {
     showMsg('inv-tx-msg', '품목, 수량, 수령/반납자는 필수예요.', 'error'); return;
   }
-  const photoFile = document.getElementById('inv-tx-photo').files[0];
   let imageBase64 = '', mimeType = '', thumbBase64 = '';
-  if (photoFile) {
+  if (invTxPhotoFile) {
     try {
-      const compressed = await compressImageFile(photoFile);
+      const compressed = await compressImageFile(invTxPhotoFile);
       imageBase64 = compressed.base64;
       mimeType = compressed.mimeType;
-      const thumb = await compressImageFile(photoFile, 320, 0.6);
+      const thumb = await compressImageFile(invTxPhotoFile, 320, 0.6);
       thumbBase64 = thumb.base64;
     } catch (e) {
       showMsg('inv-tx-msg', '사진 처리 중 오류가 발생했어요.', 'error'); return;
@@ -640,7 +680,7 @@ async function submitInventoryTx() {
     document.getElementById('inv-tx-qty').value = '';
     document.getElementById('inv-tx-person').value = '';
     document.getElementById('inv-tx-memo').value = '';
-    document.getElementById('inv-tx-photo').value = '';
+    clearInventoryPhoto('tx');
     await loadInventory();
     setTimeout(() => { document.getElementById('inventory-tx-form').style.display = 'none'; }, 800);
   } else {
@@ -652,14 +692,13 @@ async function addInventoryItemWeb() {
   const unit = document.getElementById('inv-new-unit').value.trim();
   const note = document.getElementById('inv-new-note').value.trim();
   if (!name) { showMsg('inv-new-msg', '품목명을 입력해주세요.', 'error'); return; }
-  const photoFile = document.getElementById('inv-new-photo').files[0];
   let imageBase64 = '', mimeType = '', thumbBase64 = '';
-  if (photoFile) {
+  if (invNewPhotoFile) {
     try {
-      const compressed = await compressImageFile(photoFile);
+      const compressed = await compressImageFile(invNewPhotoFile);
       imageBase64 = compressed.base64;
       mimeType = compressed.mimeType;
-      const thumb = await compressImageFile(photoFile, 320, 0.6);
+      const thumb = await compressImageFile(invNewPhotoFile, 320, 0.6);
       thumbBase64 = thumb.base64;
     } catch (e) {
       showMsg('inv-new-msg', '사진 처리 중 오류가 발생했어요.', 'error'); return;
@@ -671,7 +710,7 @@ async function addInventoryItemWeb() {
     document.getElementById('inv-new-name').value = '';
     document.getElementById('inv-new-unit').value = '';
     document.getElementById('inv-new-note').value = '';
-    document.getElementById('inv-new-photo').value = '';
+    clearInventoryPhoto('new');
     await loadInventory();
     setTimeout(() => { document.getElementById('new-inventory-item-form').style.display = 'none'; }, 800);
   } else {
