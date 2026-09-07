@@ -348,33 +348,6 @@
         <div class="info-box" id="attend-info"></div>
       </div>
     </div>
-    <div id="prereg-feature-wrap" style="display:none">
-    <h2 style="font-size:16px; font-weight:700; margin-top:28px;">사전신청</h2>
-    <div id="section-pre">
-      <div id="pre-form">
-        <label>활동 선택</label>
-        <div class="select-wrap">
-          <select id="pre-activity" onchange="onPreActivityChange()">
-            <option value="">활동을 선택해주세요</option>
-          </select>
-        </div>
-       <div id="pre-capacity-info" style="display:none; font-size:13px; color:#666; margin-top:8px; padding:8px 12px; background:#f7faf8; border-radius:10px;"></div>
-        <div class="notice-box" id="pre-notice"></div>
-        <div class="checkbox-group" id="pre-sub-group" style="display:none">
-          <p>참여 항목 선택</p>
-          <div id="pre-sub-list"></div>
-        </div>
-        <button class="btn" onclick="submitPre()">신청 완료</button>
-        <div class="msg" id="pre-msg"></div>
-      </div>
-      <div class="success-screen" id="pre-success">
-        <div class="success-icon">✓</div>
-        <h2>신청 완료!</h2>
-        <p>사전 신청이 접수되었어요</p>
-        <button class="btn" onclick="resetPreForm()">다른 활동 신청하기</button>
-      </div>
-    </div>
-   </div>
   </div>
 <!-- 마이페이지 -->
   <div class="section" id="section-my">
@@ -650,13 +623,13 @@ function showPushOnboarding() {
       '① 하단 공유 버튼(⬆️) 탭<br>' +
       '② "홈 화면에 추가" 선택<br>' +
       '③ 홈 화면 아이콘으로 다시 열기<br><br>' +
-      '추가하지 않으면 사전신청한 활동의 알림을 받을 수 없어요.</p>' +
+      '추가하지 않으면 활동 알림을 받을 수 없어요.</p>' +
       '<button id="push-onboard-close" style="margin-top:8px;background:#1D9E75;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;">확인했어요</button>';
   } else {
     box.innerHTML =
       '<h3 style="margin:0 0 12px;color:#1D9E75;">활동 알림을 받으시겠어요?</h3>' +
       '<p style="font-size:14px;line-height:1.6;color:#333;">' +
-      '사전신청하신 활동이 있으면 하루 전에 알려드려요.<br>' +
+      '예정된 활동이 있으면 당일 알람으로 알려드려요.<br>' +
       '받지 않으면 활동 알림을 놓칠 수 있어요.</p>' +
       '<div style="margin-top:16px;display:flex;gap:8px;justify-content:center;">' +
       '<button id="push-onboard-deny" style="background:#eee;color:#333;border:none;border-radius:8px;padding:10px 20px;font-size:14px;">받지 않음</button>' +
@@ -842,6 +815,7 @@ function bootstrap() {
   localStorage.removeItem('sdm_session');
   document.getElementById('login-gate').style.display = 'block';
 }
+
 async function loadActivities() {
     try {
       const data = await api({ action: 'getActivities', generation: CURRENT_GEN });
@@ -850,17 +824,14 @@ async function loadActivities() {
           String(a['활성화']).toUpperCase() === 'TRUE'
         );
         const attendSel = document.getElementById('attend-activity');
-        const preSel = document.getElementById('pre-activity');
         if (allActivities.length === 0) {
           attendSel.innerHTML = '<option value="">현재 진행중인 활동이 없습니다</option>';
-          preSel.innerHTML = '<option value="">현재 진행중인 활동이 없습니다</option>';
           return;
         }
         allActivities.forEach(act => {
           const rawDate = act['날짜'] ? String(act['날짜']).split('T')[0] : '';
           const label = `${act['활동명']} (${rawDate})`;
           attendSel.innerHTML += `<option value="${act['활동ID']}">${label}</option>`;
-          preSel.innerHTML += `<option value="${act['활동ID']}">${label}</option>`;
         });
         const today = new Date(); today.setHours(0,0,0,0);
         const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
@@ -874,21 +845,11 @@ async function loadActivities() {
         const upcoming = data.activities
         .filter(a => new Date(String(a['날짜']).split('T')[0]) >= today)
         .sort((a, b) => new Date(String(a['날짜']).split('T')[0]) - new Date(String(b['날짜']).split('T')[0]));
-        const myRegisteredIds = await getMyUpcomingRegisteredIds();
-        const myUpcoming = upcoming.filter(a => myRegisteredIds.has(a['활동ID']));
-        renderNextActivityHeader(myUpcoming[0] || upcoming[0] || null);
+        renderNextActivityHeader(upcoming[0] || null);
       }
     } catch(e) { console.error('활동 목록 로드 실패', e); }
   }
-async function getMyUpcomingRegisteredIds() {
-  try {
-    const res = await api({ action: 'getMemberStatus', name: SESSION.name, phone4: SESSION.phone4 });
-    if (!res.success || !res.preRegistered) return new Set();
-    return new Set(res.preRegistered.map(r => r.activityId));
-  } catch (e) {
-    return new Set();
-  }
-}
+
 async function renderNextActivityHeader(act) {
   const header = document.getElementById('next-activity-header');
   const nameEl = document.getElementById('next-activity-name');
@@ -920,30 +881,6 @@ async function renderNextActivityHeader(act) {
   }
   let placeName = act['장소명'] || '';
   let address = act['주소'] || '';
-  const subItemsList = act['세부참여항목'] ? String(act['세부참여항목']).split(',').map(s => s.trim()).filter(Boolean) : [];
-  const placeNameList = placeName ? placeName.split(',').map(s => s.trim()) : [];
-  const addressList = address ? address.split(',').map(s => s.trim()) : [];
-  if (subItemsList.length > 1 && placeNameList.length === subItemsList.length && addressList.length === subItemsList.length) {
-    try {
-      const preRes = await api({ action: 'getPreRegister', activityId: act['활동ID'] });
-      const myRow = preRes.success
-        ? preRes.preRegister.find(r => r['이름'] === SESSION.name && String(r['전화번호']).replace(/-/g, '').slice(-4) === SESSION.phone4)
-        : null;
-      const mySubItem = myRow ? String(myRow['세부항목납부'] || '').trim() : '';
-      const idx = subItemsList.indexOf(mySubItem);
-      if (idx !== -1) {
-        placeName = placeNameList[idx];
-        address = addressList[idx];
-      } else {
-        placeName = '';
-        address = '';
-      }
-    } catch (e) {
-      console.error('세부항목별 장소 조회 실패', e);
-      placeName = '';
-      address = '';
-    }
-  }
   if (placeName || address) {
     locEl.innerHTML = `📍 ${placeName}${placeName && address ? ' · ' : ''}${address}`;
   } else {
@@ -987,78 +924,6 @@ function onActivityChange() {
     group.style.display = 'block';
   }
 }
- 
-async function onPreActivityChange() {
-    const activityId = document.getElementById('pre-activity').value;
-    const noticeBox = document.getElementById('pre-notice');
-    noticeBox.style.display = 'none';
-    noticeBox.innerHTML = '';
-    const preSubGroup = document.getElementById('pre-sub-group');
-    const preSubList = document.getElementById('pre-sub-list');
-    preSubList.innerHTML = '';
-    preSubGroup.style.display = 'none';
-    const capacityInfo = document.getElementById('pre-capacity-info');
-    capacityInfo.style.display = 'none';
-    capacityInfo.textContent = '';
-    const submitBtn = document.querySelector('#section-pre .btn');
-    submitBtn.disabled = false;
-    submitBtn.textContent = '신청 완료';
-    if (!activityId) return;
-    const act = allActivities.find(a => a['활동ID'] === activityId);
-    if (!act) return;
-    // 사전신청용 세부항목 라디오
-    const subItems = act['세부참여항목'];
-    if (subItems && String(subItems).trim() !== '') {
-      const items = String(subItems).split(',').map(s => s.trim()).filter(Boolean);
-      const subExtraRaw = act['세부항목추가금'] || '';
-      const subExtraMap = {};
-      if (subExtraRaw.trim() !== '') {
-        subExtraRaw.split(',').forEach(item => {
-          const [k, v] = item.split('=').map(s => s.trim());
-          if (k && v !== undefined) subExtraMap[k] = parseInt(v);
-        });
-      }
-      items.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'checkbox-item';
-        const priceLabel = subExtraMap[item] !== undefined
-          ? (subExtraMap[item] === 0 ? ' (무료)' : ` (+${subExtraMap[item].toLocaleString()}원)`)
-          : '';
-        div.innerHTML = `<input type="radio" name="pre-sub-radio" id="presub_${item}" value="${item}">
-          <label for="presub_${item}">${item}${priceLabel}</label>`;
-        preSubList.appendChild(div);
-      });
-      preSubGroup.style.display = 'block';
-    }
-    // 활동 전체 추가금 안내
-    const hasExtra = String(act['추가비용여부']).toUpperCase() === 'TRUE';
-    if (hasExtra && act['추가비용안내']) {
-      const parts = act['추가비용안내'].split('|').map(s => s.trim()).filter(Boolean);
-      const icons = ['🏦', '👤', '📱', '💰'];
-      noticeBox.innerHTML = parts.map((p, i) =>
-        `<div style="margin-bottom:4px;">${icons[i] || '•'} ${p}</div>`
-      ).join('');
-      noticeBox.style.display = 'block';
-    }
-    // 마감시각 / 정원 현황
-    const deadline = act['마감일시'];
-    const isPastDeadline = deadline && new Date() > new Date(deadline);
-    const capacity = act['정원'] ? Number(act['정원']) : 0;
-    if (capacity > 0 || deadline) {
-      const res = await api({ action: 'getPreRegister', activityId });
-      const currentCount = res.success ? res.preRegister.length : 0;
-      const parts = [];
-      if (capacity > 0) parts.push(`현재 ${currentCount}/${capacity}명`);
-      if (deadline) parts.push(`마감: ${String(deadline).replace('T', ' ')}`);
-      capacityInfo.textContent = parts.join(' · ');
-      capacityInfo.style.display = 'block';
-      const isFull = capacity > 0 && currentCount >= capacity;
-      if (isPastDeadline || isFull) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = isPastDeadline ? '신청 마감되었습니다' : '정원이 마감되었습니다';
-      }
-    }
-  }
  
 const TAB_ORDER = ['home', 'activity', 'my', 'community'];
 function switchTab(tab) {
@@ -2612,37 +2477,7 @@ async function submitAttend() {
     btn.disabled = false; btn.textContent = '출석 완료';
   }
 }
-async function submitPre() {
-  const activityId = document.getElementById('pre-activity').value;
-  const name = SESSION.name;
-  const phone4 = SESSION.phone4;
-  if (!activityId) { showMsg('pre-msg', '활동을 선택해주세요.', 'error'); return; }
-  const btn = document.querySelector('#section-pre .btn');
-  btn.disabled = true; btn.textContent = '신청 중...';
-  try {
-    const checkedPreSubItems = [...document.querySelectorAll('#pre-sub-list input:checked')]
-      .map(el => el.value).join(',');
-    const res = await api({ action: 'preRegister', name, phone4, activityId, subItems: checkedPreSubItems, generation: CURRENT_GEN });
-    if (res.success) {
-      document.getElementById('pre-form').style.display = 'none';
-      document.getElementById('pre-success').classList.add('show');
-    } else {
-      showMsg('pre-msg', res.message, 'error');
-      btn.disabled = false; btn.textContent = '신청 완료';
-    }
-  } catch(e) {
-    showMsg('pre-msg', '오류가 발생했습니다. 다시 시도해주세요.', 'error');
-    btn.disabled = false; btn.textContent = '신청 완료';
-  }
-}
-function resetPreForm() {
-  document.getElementById('pre-success').classList.remove('show');
-  document.getElementById('pre-form').style.display = 'block';
-  document.getElementById('pre-activity').value = '';
-  document.getElementById('pre-msg').textContent = '';
-  document.getElementById('pre-msg').className = 'msg';
-  onPreActivityChange();
-}
+
 let myStatusData = null;
 async function loadMyStatus() {
   const name = SESSION.name;
@@ -2663,7 +2498,7 @@ async function loadMyStatus() {
 }
 function renderMyGenList() {
   const container = document.getElementById('my-gen-list');
-  const { generations, generationStats, preRegistered, attended, name, phone4 } = myStatusData;
+  const { generations, generationStats, attended } = myStatusData;
   container.innerHTML = generations.slice().sort((a, b) => Number(b) - Number(a)).map(gen => {
     const stat = generationStats[gen] || { total: 0, attended: 0 };
     return `
@@ -2673,30 +2508,13 @@ function renderMyGenList() {
           <span class="status-badge badge-green">${stat.total}회 중 ${stat.attended}회 출석</span>
         </div>
         <div id="my-gen-detail-${gen}" style="display:none; margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
-          <p style="font-size:13px; color:#666; margin-bottom:8px; font-weight:500;">📋 사전신청 현황</p>
-          ${renderMyPreList(preRegistered.filter(r => r.generation === gen), name, phone4)}
-          <p style="font-size:13px; color:#666; margin-top:16px; margin-bottom:8px; font-weight:500;">✅ 출석 현황</p>
+          <p style="font-size:13px; color:#666; margin-bottom:8px; font-weight:500;">✅ 출석 현황</p>
           ${renderMyAttList(attended.filter(r => r.generation === gen))}
         </div>
       </div>`;
   }).join('');
 }
-function renderMyPreList(items, name, phone4) {
-  if (items.length === 0) return '<div class="empty-state">신청한 활동이 없어요</div>';
-  return items.map(r => `
-    <div class="status-card">
-      <div class="status-card-title">
-        ${esc(r.activityName)}
-        <span class="status-badge ${r.paid ? 'badge-green' : 'badge-red'}">
-          ${r.paid ? '납부완료' : '미납'}
-        </span>
-      </div>
-      <button onclick="cancelPre('${r.activityId}', '${name}', '${phone4}')"
-        style="font-size:12px; color:#E24B4A; background:none; border:none; cursor:pointer; margin-top:4px;">
-        신청 취소
-      </button>
-    </div>`).join('');
-}
+
 function renderMyAttList(items) {
   if (items.length === 0) return '<div class="empty-state">출석한 활동이 없어요</div>';
   return items.map(r => `
@@ -2713,19 +2531,7 @@ function toggleMyGen(gen) {
   if (!el) return;
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
-  async function cancelPre(activityId, name, phone4) {
-    if (!confirm('정말 신청을 취소할까요?')) return;
-    try {
-      const res = await api({ action: 'cancelPreRegister', name, phone4, activityId });
-      if (res.success) {
-        await loadMyStatus();
-      } else {
-        alert(res.message);
-      }
-    } catch(e) {
-      alert('오류가 발생했습니다.');
-    }
-  }
+
 async function initGeneration() {
   const res = await api({ action: 'getCurrentGeneration' });
   CURRENT_GEN = res.success ? res.generation : '';
