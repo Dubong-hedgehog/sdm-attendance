@@ -154,26 +154,12 @@
         <input type="text" id="new-act-name" placeholder="7차 쫑파티">
         <label>날짜</label>
         <input type="text" id="new-act-date" placeholder="yyyy-mm-dd">
-        <label>정원 (선택, 비워두면 제한 없음)</label>
-        <input type="text" id="new-act-capacity" placeholder="예: 30" inputmode="numeric">
-        <label>사전신청 마감일시 (선택, 비워두면 마감 없음)</label>
-        <input type="datetime-local" id="new-act-deadline">
         <label>세부참여항목 (쉼표 구분, 없으면 공란)</label>
         <input type="text" id="new-act-sub" placeholder="활동A,활동B,활동C..">
         <label>장소명 (세부항목이 여러 개면 콤마로 순서 맞춰 입력)</label>
         <input type="text" id="new-act-place" placeholder="예: 홍제천 또는 A장소,B장소">
         <label>주소 (세부항목이 여러 개면 콤마로 순서 맞춰 입력)</label>
         <input type="text" id="new-act-address" placeholder="예: 서울 서대문구 ... 또는 A주소,B주소">
-        <div class="toggle-wrap" style="margin-top:14px;">
-          <input type="checkbox" id="new-act-extra">
-          <label for="new-act-extra">추가비용 있음</label>
-        </div>
-        <div id="new-act-extra-wrap" style="display:none;">
-        <label>추가비용안내 (| 로 구분 // 은행명 | 예금주 | 계좌번호 | 금액)</label>
-        <input type="text" id="new-act-extra-msg" placeholder="은행명 | 예금주 | 계좌번호 | 10,000원">
-          <label>세부항목추가금 (항목=금액,항목=금액 // 금액은 ,찍지말고 그냥쓰기)</label>
-          <input type="text" id="new-act-extra-items" placeholder="활동A=0,활동B=10000">
-        </div>
         <div class="toggle-wrap" style="margin-top:14px;">
           <input type="checkbox" id="new-act-1365">
           <label for="new-act-1365">1365 활동여부</label>
@@ -192,13 +178,6 @@
     </div>
 <!-- 납부관리 -->
     <div class="section" id="section-payment">
-      <h2>사전신청 납부 현황</h2>
-      <label>활동 선택</label>
-      <div class="select-wrap">
-        <select id="payment-activity" onchange="loadPayment()"></select>
-      </div>
-      <div id="payment-list" style="margin-top:16px;"></div>
-      <hr class="divider">
       <h2>수동 출석 추가</h2>
       <label>활동 선택</label>
       <div class="select-wrap">
@@ -654,7 +633,7 @@ async function loadMembers() {
 }
 
 function populateActivitySelects() {
-  const selects = ['daily-activity', 'payment-activity', 'manual-activity'];
+  const selects = ['daily-activity', 'manual-activity'];
   selects.forEach(id => {
     const sel = document.getElementById(id);
     sel.innerHTML = '<option value="">활동 선택</option>';
@@ -662,7 +641,6 @@ function populateActivitySelects() {
       sel.innerHTML += `<option value="${act['활동ID']}">${act['활동명']} (${String(act['날짜']).split('T')[0]})</option>`;
     });
   });
-}
 
 async function loadDashboard() {
   const content = document.getElementById('dashboard-content');
@@ -736,13 +714,7 @@ async function buildNextActivityReadinessCard() {
   const act = upcoming[0];
   const activityId = act['활동ID'];
 
-  const [preRes, checklistRes] = await Promise.all([
-    api({ action: 'getPreRegister', activityId }),
-    api({ action: 'getChecklist', activityId })
-  ]);
-  const preList = preRes.success ? preRes.preRegister : [];
-  const preCount = preList.length;
-  const unpaidCount = preList.filter(r => String(r['활동비납입']).toUpperCase() !== 'TRUE').length;
+  const checklistRes = await api({ action: 'getChecklist', activityId });
   const items = checklistRes.success ? checklistRes.items : [];
   const checkedCount = items.filter(it => it.checked).length;
 
@@ -752,19 +724,9 @@ async function buildNextActivityReadinessCard() {
         <div style="font-size:14px; font-weight:600; color:#333;">다음 활동 준비 현황</div>
         <span style="font-size:11px; color:#aaa;">${esc(act['활동명'])} · ${String(act['날짜']).split('T')[0]}</span>
       </div>
-      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
-        <div style="background:#F3FAF7; border:1px solid #e2f0e9; border-radius:14px; padding:10px 6px; text-align:center;">
-          <div style="font-size:10px; color:#888; margin-bottom:4px;">사전신청</div>
-          <div style="font-size:18px; font-weight:600; color:#1D9E75;">${preCount}명</div>
-        </div>
-        <div style="background:${unpaidCount > 0 ? '#FCEBEB' : '#F3FAF7'}; border:1px solid ${unpaidCount > 0 ? '#f6d8d8' : '#e2f0e9'}; border-radius:14px; padding:10px 6px; text-align:center;">
-          <div style="font-size:10px; color:${unpaidCount > 0 ? '#a32d2d' : '#888'}; margin-bottom:4px;">미납</div>
-          <div style="font-size:18px; font-weight:600; color:${unpaidCount > 0 ? '#A32D2D' : '#1D9E75'};">${unpaidCount}명</div>
-        </div>
-        <div style="background:#F3FAF7; border:1px solid #e2f0e9; border-radius:14px; padding:10px 6px; text-align:center;">
-          <div style="font-size:10px; color:#888; margin-bottom:4px;">준비물</div>
-          <div style="font-size:18px; font-weight:600; color:#1D9E75;">${checkedCount}/${items.length}</div>
-        </div>
+      <div style="background:#F3FAF7; border:1px solid #e2f0e9; border-radius:14px; padding:10px 6px; text-align:center;">
+        <div style="font-size:10px; color:#888; margin-bottom:4px;">준비물</div>
+        <div style="font-size:18px; font-weight:600; color:#1D9E75;">${checkedCount}/${items.length}</div>
       </div>
     </div>`;
 }
@@ -914,8 +876,6 @@ function renderActivityList() {
     const active = String(act['활성화']).toUpperCase() === 'TRUE';
     const is1365 = String(act['1365처리여부']).toUpperCase() === 'TRUE';
     const countAttendance = String(act['개근집계여부']).toUpperCase() !== 'FALSE';
-    const capacityLabel = act['정원'] ? `· 정원 ${act['정원']}명` : '';
-    const deadlineLabel = act['마감일시'] ? `· 마감 ${String(act['마감일시']).replace('T',' ')}` : '';
     return `
     <div class="list-item" id="act-item-${i}">
       <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -925,7 +885,7 @@ function renderActivityList() {
           <button class="btn-sm btn-blue" onclick="toggleChecklist(${i})" title="준비물 체크리스트">+</button>
         </div>
       </div>
-      <div class="list-item-sub">${String(act['날짜']).split('T')[0]} ${is1365 ? '· <span style="color:#378ADD;">1365</span>' : ''} ${!countAttendance ? '· <span style="color:#E24B4A;">개근제외</span>' : ''} ${capacityLabel} ${deadlineLabel}</div>
+      <div class="list-item-sub">${String(act['날짜']).split('T')[0]} ${is1365 ? '· <span style="color:#378ADD;">1365</span>' : ''} ${!countAttendance ? '· <span style="color:#E24B4A;">개근제외</span>' : ''}</div>
       <div class="btn-row">
         <button class="btn-sm ${active ? 'btn-red' : 'btn-green'}" onclick="toggleActivity(${i})">${active ? '비활성화' : '활성화'}</button>
       </div>
@@ -934,10 +894,6 @@ function renderActivityList() {
         <input type="text" id="edit-name-${i}" value="${esc(act['활동명'])}">
         <label>날짜</label>
         <input type="text" id="edit-date-${i}" value="${String(act['날짜']).split('T')[0]}">
-        <label>정원 (선택, 비워두면 제한 없음)</label>
-        <input type="text" id="edit-capacity-${i}" value="${act['정원'] || ''}">
-        <label>사전신청 마감일시 (선택)</label>
-        <input type="datetime-local" id="edit-deadline-${i}" value="${act['마감일시'] || ''}">
         <label>세부참여항목 (쉼표 구분)</label>
         <input type="text" id="edit-sub-${i}" value="${esc(act['세부참여항목'] || '')}">
         <label>장소명 (세부항목이 여러 개면 콤마로 순서 맞춰 입력)</label>
@@ -947,17 +903,7 @@ function renderActivityList() {
         <label>카카오톡 오픈채팅 링크 (푸시 알림 클릭 시 이동)</label>
         <input type="text" id="edit-kakao-${i}" value="${esc(act['카카오톡링크'] || '')}" placeholder="https://open.kakao.com/o/...">
         <label>알림 문구 (비워두면 기본 문구로 발송)</label>
-        <input type="text" id="edit-pushmsg-${i}" value="${esc(act['알림문구'] || '')}" placeholder="내일 활동 있어요! 사전신청하신 분들은 확인해주세요">
-        <div class="toggle-wrap" style="margin-top:12px;">
-          <input type="checkbox" id="edit-extra-${i}" ${String(act['추가비용여부']).toUpperCase()==='TRUE' ? 'checked' : ''} onchange="toggleEditExtra(${i})">
-          <label for="edit-extra-${i}">추가비용 있음</label>
-        </div>
-        <div id="edit-extra-wrap-${i}" style="display:${String(act['추가비용여부']).toUpperCase()==='TRUE' ? 'block' : 'none'};">
-          <label>추가비용안내 (| 로 구분)</label>
-          <input type="text" id="edit-extra-msg-${i}" value="${esc(act['추가비용안내'] || '')}">
-          <label>세부항목추가금</label>
-          <input type="text" id="edit-extra-items-${i}" value="${esc(act['세부항목추가금'] || '')}">
-        </div>
+        <input type="text" id="edit-pushmsg-${i}" value="${esc(act['알림문구'] || '')}" placeholder="내일 활동 있어요! 확인해주세요">
         <div class="toggle-wrap" style="margin-top:12px;">
           <input type="checkbox" id="edit-1365-${i}" ${String(act['1365처리여부']).toUpperCase()==='TRUE' ? 'checked' : ''}>
           <label for="edit-1365-${i}">1365 처리 활동</label>
@@ -998,14 +944,9 @@ async function toggleActivity(idx) {
 async function addActivity() {
   const name = document.getElementById('new-act-name').value.trim();
   const date = document.getElementById('new-act-date').value.trim();
-  const capacity = document.getElementById('new-act-capacity').value.trim();
-  const deadline = document.getElementById('new-act-deadline').value;
   const sub = document.getElementById('new-act-sub').value.trim();
   const placeName = document.getElementById('new-act-place').value.trim();
   const address = document.getElementById('new-act-address').value.trim();
-  const hasExtra = document.getElementById('new-act-extra').checked;
-  const extraMsg = document.getElementById('new-act-extra-msg').value.trim();
-  const extraItems = document.getElementById('new-act-extra-items').value.trim();
   const is1365 = document.getElementById('new-act-1365').checked;
   const active = document.getElementById('new-act-active').checked;
   const countAttendance = document.getElementById('new-act-count').checked;
@@ -1013,16 +954,11 @@ async function addActivity() {
   const res = await api({
     action: 'addActivity', name, date,
     generation: currentGen, subItems: sub,
-    capacity, deadline,
     placeName, address,
-    extraFlag: hasExtra ? 'TRUE' : 'FALSE',
-    extraMsg: extraMsg, extraItems: extraItems,
     is1365: is1365 ? 'TRUE' : 'FALSE', active, countAttendance
   });
   if (res.success) {
     showMsg('activity-msg', '활동이 추가되었습니다.', 'success');
-    document.getElementById('new-act-capacity').value = '';
-    document.getElementById('new-act-deadline').value = '';
     document.getElementById('new-act-place').value = '';
     document.getElementById('new-act-address').value = '';
     await loadActivities();
@@ -1045,35 +981,6 @@ async function addDailyMember() {
   } else { showMsg('daily-msg', res.message, 'error'); }
 }
 
-async function loadPayment() {
-  const activityId = document.getElementById('payment-activity').value;
-  if (!activityId) return;
-  const res = await api({ action: 'getPreRegister', activityId });
-  const list = document.getElementById('payment-list');
-  if (!res.success || res.preRegister.length === 0) {
-    list.innerHTML = '<div class="empty">사전신청자가 없어요</div>'; return;
-  }
-  list.innerHTML = res.preRegister.map(r => {
-    const paid = String(r['활동비납입']).toUpperCase() === 'TRUE';
-    const phone4 = String(r['전화번호']).replace(/-/g,'').slice(-4);
-    return `
-    <div class="list-item">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div class="list-item-title">${esc(r['이름'])}</div>
-        <span class="badge ${paid ? 'badge-green' : 'badge-red'}">${paid ? '납부완료' : '미납'}</span>
-      </div>
-      <div class="list-item-sub">신청: ${String(r['신청시간']).substring(0,16)} ${r['세부항목납부'] ? '· ' + esc(r['세부항목납부']) : ''}</div>
-      <button class="btn-sm ${paid ? 'btn-gray' : 'btn-green'}" onclick="togglePayment('${activityId}','${r['이름']}','${phone4}',${paid})">
-        ${paid ? '납부취소' : '납부확인'}
-      </button>
-    </div>`;
-  }).join('');
-}
-async function togglePayment(activityId, name, phone4, currentPaid) {
-  const res = await api({ action: 'updatePayment', activityId, name, phone4, paid: !currentPaid });
-  if (res.success) loadPayment();
-  else alert(res.message);
-}
 async function addManualAttendance() {
   const activityId = document.getElementById('manual-activity').value;
   const name = document.getElementById('manual-name').value.trim();
@@ -1098,8 +1005,6 @@ function switchTab(tab) {
     document.getElementById('section-'+t).classList.toggle('active', t===tab);
   });
 }
-document.getElementById('new-act-extra').addEventListener('change', function() {
-  document.getElementById('new-act-extra-wrap').style.display = this.checked ? 'block' : 'none';
 });
  async function toggleChecklist(idx) {
   const wrap = document.getElementById(`checklist-${idx}`);
@@ -1177,24 +1082,15 @@ async function deleteCheckItem(idx, j) {
   const wrap = document.getElementById(`edit-activity-${idx}`);
   wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
 }
-function toggleEditExtra(idx) {
-  const checked = document.getElementById(`edit-extra-${idx}`).checked;
-  document.getElementById(`edit-extra-wrap-${idx}`).style.display = checked ? 'block' : 'none';
-}
 async function saveEditActivity(idx) {
   const act = allActivities[idx];
   const name = document.getElementById(`edit-name-${idx}`).value.trim();
   const date = document.getElementById(`edit-date-${idx}`).value.trim();
-  const capacity = document.getElementById(`edit-capacity-${idx}`).value.trim();
-  const deadline = document.getElementById(`edit-deadline-${idx}`).value;
   const sub = document.getElementById(`edit-sub-${idx}`).value.trim();
   const placeName = document.getElementById(`edit-place-${idx}`).value.trim();
   const address = document.getElementById(`edit-address-${idx}`).value.trim();
   const kakaoLink = document.getElementById(`edit-kakao-${idx}`).value.trim();
   const pushMsg = document.getElementById(`edit-pushmsg-${idx}`).value.trim();
-  const hasExtra = document.getElementById(`edit-extra-${idx}`).checked;
-  const extraMsg = document.getElementById(`edit-extra-msg-${idx}`).value.trim();
-  const extraItems = document.getElementById(`edit-extra-items-${idx}`).value.trim();
   const is1365 = document.getElementById(`edit-1365-${idx}`).checked;
   const active = document.getElementById(`edit-active-${idx}`).checked;
   const countAttendance = document.getElementById(`edit-count-${idx}`).checked;
@@ -1203,23 +1099,17 @@ async function saveEditActivity(idx) {
     action: 'updateActivity',
     activityId: act['활동ID'],
     name, date,
-    capacity, deadline,
     subItems: sub,
     placeName, address,
     kakaoLink, pushMsg,
-    extraFlag: hasExtra ? 'TRUE' : 'FALSE',
-    extraMsg, extraItems,
     is1365: is1365 ? 'TRUE' : 'FALSE',
     active, countAttendance
   });
   if (res.success) {
     allActivities[idx] = {
       ...act, '활동명': name, '날짜': date, '세부참여항목': sub,
-      '정원': capacity, '마감일시': deadline,
       '장소명': placeName, '주소': address,
       '카카오톡링크': kakaoLink, '알림문구': pushMsg,
-      '추가비용여부': hasExtra ? 'TRUE' : 'FALSE',
-      '추가비용안내': extraMsg, '세부항목추가금': extraItems,
       '1365처리여부': is1365 ? 'TRUE' : 'FALSE',
       '활성화': active ? 'TRUE' : 'FALSE',
       '개근집계여부': countAttendance ? 'TRUE' : 'FALSE'
