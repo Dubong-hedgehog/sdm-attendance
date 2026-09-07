@@ -641,6 +641,7 @@ function populateActivitySelects() {
       sel.innerHTML += `<option value="${act['활동ID']}">${act['활동명']} (${String(act['날짜']).split('T')[0]})</option>`;
     });
   });
+}
 
 async function loadDashboard() {
   const content = document.getElementById('dashboard-content');
@@ -1005,7 +1006,6 @@ function switchTab(tab) {
     document.getElementById('section-'+t).classList.toggle('active', t===tab);
   });
 }
-});
  async function toggleChecklist(idx) {
   const wrap = document.getElementById(`checklist-${idx}`);
   const isHidden = wrap.style.display === 'none';
