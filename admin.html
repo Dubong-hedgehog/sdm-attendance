@@ -705,6 +705,20 @@ async function applyAsCoHost(id) {
   else alert(res.message);
 }
 
+async function applyAsCoHost(id) {
+  const hostName = prompt('공동호스트로 등록할 운영진 이름을 입력해주세요.', adminName);
+  if (!hostName) return;
+  const res = await api({ action: 'applyBoardHost', id, hostName: hostName.trim() });
+  if (res.success) loadAdminBoardList();
+  else alert(res.message);
+}
+async function cancelAsCoHost(id) {
+  if (!confirm('공동호스트 참여를 취소할까요?')) return;
+  const res = await api({ action: 'cancelBoardHost', id, hostName: adminName });
+  if (res.success) loadAdminBoardList();
+  else alert(res.message);
+}
+
 async function changeAdminBoardStatus(id, status) {
   if (!status) return;
   const res = await api({ action: 'updateBoardPostStatus', id, isAdmin: true, status });
