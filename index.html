@@ -400,10 +400,12 @@
   <div class="card" style="max-width:340px; margin:0; padding:24px; max-height:85vh; overflow-y:auto;">
     <h2 style="margin-bottom:16px; font-size:18px;">게시글 작성</h2>
     <label style="margin-top:0;">게시글 종류</label>
-    <select id="board-write-type" onchange="onBoardWriteTypeChange()">
-      <option value="social">소셜링 신청</option>
-      <option value="suggestion">건의함</option>
-    </select>
+    <div class="select-wrap">
+      <select id="board-write-type" onchange="onBoardWriteTypeChange()">
+        <option value="social">소셜링 신청</option>
+        <option value="suggestion">건의함</option>
+      </select>
+    </div>
     <div id="board-write-social-fields">
       <label>제목</label>
       <input type="text" id="board-write-title" placeholder="예: OO 소셜링 열고 싶어요">
