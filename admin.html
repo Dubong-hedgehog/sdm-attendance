@@ -194,6 +194,8 @@
     <div class="section" id="section-board">
       <h2>소셜링 관리</h2>
       <div id="admin-board-list"></div>
+      <h2 style="margin-top:24px;">건의함</h2>
+      <div id="admin-suggestion-list"></div>
     </div>
    <!-- 재고관리 -->
     <div class="section" id="section-inventory">
@@ -358,6 +360,7 @@ async function loadAll() {
   await loadMembers();
   loadDashboard();
   loadAdminBoardList();
+  loadAdminSuggestions();
   loadInventory();
   loadNoticesAdmin();
 }
@@ -446,13 +449,16 @@ async function loadAdminBoardList() {
   const res = await api({ action: 'getBoardPosts', generation: currentGen });
   if (!res.success) { list.innerHTML = '<div class="empty">불러오기 실패</div>'; return; }
   if (res.posts.length === 0) { list.innerHTML = '<div class="empty">등록된 게시글이 없어요</div>'; return; }
-  list.innerHTML = res.posts.map(p => `
+  list.innerHTML = res.posts.map(p => {
+    const hostsText = p.coHosts.length ? ' (' + esc(p.coHosts.join(', ')) + ')' : '';
+    const slotFull = p.coHosts.length >= p.maxSlots;
+    return `
     <div class="list-item">
       <div class="list-item-title">${esc(p.title)} <span class="badge ${p.status==='매칭완료' ? 'badge-gray' : p.status==='소셜링 취소' ? 'badge-red' : 'badge-green'}">${p.status}</span></div>
-      <div class="list-item-sub">${esc(p.author)} · 최대 ${p.maxPeople}명(호스트 포함)${p.coHost ? ' · 공동호스트: ' + esc(p.coHost) : ''} · ${String(p.createdAt).substring(0,16)}</div>
+      <div class="list-item-sub">${esc(p.author)} · 최대 ${p.maxPeople}명(호스트 포함) · 공동호스트 ${p.coHosts.length}/${p.maxSlots}${hostsText} · ${String(p.createdAt).substring(0,16)}</div>
       <div class="list-item-sub" style="white-space:pre-wrap;">${esc(p.content)}</div>
       <div class="btn-row">
-        <button class="btn-sm btn-green" onclick="applyAsCoHost('${p.id}')">공동호스트로 참여하기</button>
+        ${slotFull ? '<span style="font-size:12px; color:#888;">공동호스트 마감</span>' : `<button class="btn-sm btn-green" onclick="applyAsCoHost('${p.id}')">공동호스트로 참여하기</button>`}
         <select onchange="changeAdminBoardStatus('${p.id}', this.value)">
           <option value="">상태변경</option>
           <option value="호스트 모집 중">호스트 모집 중</option>
@@ -461,6 +467,21 @@ async function loadAdminBoardList() {
         </select>
         <button class="btn-sm btn-red" onclick="deleteAdminBoardPost('${p.id}')">삭제</button>
       </div>
+    </div>
+  `;
+  }).join('');
+}
+async function loadAdminSuggestions() {
+  const list = document.getElementById('admin-suggestion-list');
+  list.innerHTML = '<div class="empty">불러오는 중...</div>';
+  const res = await api({ action: 'getSuggestions', generation: currentGen, isAdmin: true });
+  if (!res.success) { list.innerHTML = '<div class="empty">불러오기 실패</div>'; return; }
+  if (res.suggestions.length === 0) { list.innerHTML = '<div class="empty">등록된 건의함이 없어요</div>'; return; }
+  list.innerHTML = res.suggestions.map(s => `
+    <div class="list-item">
+      <div class="list-item-title">${esc(s.name)}</div>
+      <div class="list-item-sub" style="white-space:pre-wrap;">${esc(s.content)}</div>
+      <div class="list-item-sub">${String(s.createdAt).substring(0,16)}</div>
     </div>
   `).join('');
 }
