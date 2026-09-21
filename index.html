@@ -32,6 +32,9 @@
   .next-activity-location { font-size: 12px; color: rgba(255,255,255,0.75); margin-bottom: 10px; }
   .map-container { border-radius: 12px; overflow: hidden; height: 130px; }
   .map-container #kakao-map { width: 100%; height: 100%; }
+  .activity-tabs { position:relative; z-index:1; display:flex; gap:6px; margin-top:14px; }
+  .activity-chip { flex:1; text-align:center; padding:7px 4px; border-radius:10px; font-size:11px; font-weight:700; cursor:pointer; border:1px solid rgba(255,255,255,0.35); color:rgba(255,255,255,0.85); background:rgba(255,255,255,0.08); }
+  .activity-chip.active { background:#fff; color:#0a7a56; border-color:#fff; }
   /* 탭 */
   .tabs { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 400px; display: grid; grid-template-columns: repeat(4, 1fr); background: #fff; border-top: 1px solid #eee; border-radius: 0 0 26px 26px; padding: 8px 4px calc(8px + env(safe-area-inset-bottom)); box-shadow: 0 -10px 24px rgba(0,0,0,0.06); z-index: 50; }
   .tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px 2px; cursor: pointer; color: #aaa; }
@@ -291,6 +294,7 @@
         </div>
       </div>
     </div>
+      <div class="activity-tabs" id="activity-tabs" style="display:none;"></div>
     <div class="next-activity-card" id="next-activity-header">
       <div class="next-activity-label">📅 다음 활동</div>
       <div class="next-activity-name" id="next-activity-name">불러오는 중...</div>
@@ -881,6 +885,8 @@ function bootstrap() {
   document.getElementById('login-gate').style.display = 'block';
 }
 
+let nextActivityGroup = [];
+let nextActivityIdx = 0;
 async function loadActivities() {
     try {
       const data = await api({ action: 'getActivities', generation: CURRENT_GEN });
@@ -910,11 +916,39 @@ async function loadActivities() {
         const upcoming = data.activities
         .filter(a => new Date(String(a['날짜']).split('T')[0]) >= today)
         .sort((a, b) => new Date(String(a['날짜']).split('T')[0]) - new Date(String(b['날짜']).split('T')[0]));
-        renderNextActivityHeader(upcoming[0] || null);
+        if (upcoming.length === 0) {
+          nextActivityGroup = [];
+          nextActivityIdx = 0;
+          renderActivityTabs();
+          renderNextActivityHeader(null);
+        } else {
+          const nearestDate = String(upcoming[0]['날짜']).split('T')[0];
+          nextActivityGroup = upcoming.filter(a => String(a['날짜']).split('T')[0] === nearestDate);
+          nextActivityIdx = 0;
+          renderActivityTabs();
+          renderNextActivityHeader(nextActivityGroup[0]);
+        }
       }
     } catch(e) { console.error('활동 목록 로드 실패', e); }
   }
-
+function renderActivityTabs() {
+  const wrap = document.getElementById('activity-tabs');
+  if (nextActivityGroup.length <= 1) {
+    wrap.style.display = 'none';
+    wrap.innerHTML = '';
+    return;
+  }
+  wrap.style.display = 'flex';
+  wrap.innerHTML = nextActivityGroup.map((act, i) =>
+    `<div class="activity-chip ${i === nextActivityIdx ? 'active' : ''}" onclick="selectNextActivity(${i})">${esc(act['활동명'] || '')}</div>`
+  ).join('');
+}
+function selectNextActivity(i) {
+  nextActivityIdx = i;
+  renderActivityTabs();
+  renderNextActivityHeader(nextActivityGroup[i]);
+}
+ 
 async function renderNextActivityHeader(act) {
   const header = document.getElementById('next-activity-header');
   const nameEl = document.getElementById('next-activity-name');
